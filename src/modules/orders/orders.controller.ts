@@ -7,6 +7,8 @@ import {
   Patch,
   Query,
   BadRequestException,
+  InternalServerErrorException,
+  Delete,
 } from "@nestjs/common";
 import { OrdersService } from "./orders.service";
 import { CreateOrderDto } from "./dto/create-order.dto";
@@ -65,6 +67,26 @@ export class OrdersController {
       );
     } catch (err) {
       throw new BadRequestException(err.message);
+    }
+  }
+
+  @Get("customers/:shopkeeperId")
+  async getCustomersByShopkeeper(@Param("shopkeeperId") shopkeeperId: string) {
+    try {
+      return await this.ordersService.getCustomersWithOrderSummary(
+        shopkeeperId
+      );
+    } catch (error) {
+      throw new InternalServerErrorException("Failed to retrieve customers");
+    }
+  }
+
+  @Delete("delete-order/:orderId")
+  async deleteOrder(@Param("orderId") orderId: string) {
+    try {
+      return await this.ordersService.deleteOrder(orderId);
+    } catch (error) {
+      throw error;
     }
   }
 }

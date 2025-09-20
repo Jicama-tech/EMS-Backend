@@ -16,6 +16,7 @@ export class UpdateShopkeeperStoreDto {
       address?: string;
       hours?: string;
       website?: string;
+      instagramLink?: string;
     };
   };
 

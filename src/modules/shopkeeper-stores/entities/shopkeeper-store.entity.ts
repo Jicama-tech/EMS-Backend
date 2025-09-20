@@ -9,6 +9,7 @@ export interface ContactInfo {
   address?: string;
   hours?: string;
   website?: string;
+  instagramLink: string;
 }
 
 export interface StorefrontSettings {
@@ -83,6 +84,7 @@ export class ShopfrontStore {
           address: "",
           hours: "",
           website: "",
+          instagramLink: "",
         },
       },
       design: {

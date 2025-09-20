@@ -216,6 +216,9 @@ export class ShopkeeperStoresService {
             website:
               updateShopkeeperDto.general.contactInfo?.website ??
               existingStore.settings.general.contactInfo.website,
+            instagramLink:
+              updateShopkeeperDto.general.contactInfo?.instagramLink ??
+              existingStore.settings.general.contactInfo.instagramLink,
           },
         };
       }

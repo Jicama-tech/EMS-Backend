@@ -245,13 +245,13 @@ export class UsersService {
       const user = await this.findById(userId);
       if (!user) throw new NotFoundException("User not found");
 
-      if (user.whatsAppNumber) {
-        return {
-          success: false,
-          message: "WhatsApp number already verified",
-          alreadyVerified: true,
-        };
-      }
+      // if (user.whatsAppNumber) {
+      //   return {
+      //     success: false,
+      //     message: "WhatsApp number already verified",
+      //     alreadyVerified: true,
+      //   };
+      // }
 
       await this.otpService.sendWhatsAppOtp(whatsAppNumber, "user");
 

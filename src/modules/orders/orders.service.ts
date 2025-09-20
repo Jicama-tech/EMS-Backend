@@ -426,4 +426,109 @@ export class OrdersService {
       );
     }
   }
+
+  async getCustomersWithOrderSummary(shopkeeperId: string) {
+    try {
+      const customersData = await this.orderModel.aggregate([
+        { $match: { shopkeeperId } },
+        { $sort: { userId: 1, createdAt: -1 } },
+
+        // Add ObjectId field for lookup
+        {
+          $addFields: {
+            userObjId: { $toObjectId: "$userId" },
+          },
+        },
+
+        {
+          $group: {
+            _id: "$userId",
+            orders: {
+              $push: {
+                orderId: "$orderId",
+                createdAt: "$createdAt",
+                totalAmount: "$totalAmount",
+                items: "$items",
+                status: "$status",
+                orderType: "$orderType",
+                deliveryAddress: "$deliveryAddress",
+                pickupDate: "$pickupDate",
+                pickupTime: "$pickupTime",
+              },
+            },
+            orderCount: { $sum: 1 },
+            totalSpent: { $sum: "$totalAmount" },
+            userObjId: { $first: "$userObjId" }, // track converted ObjectId
+          },
+        },
+
+        // Now lookup using converted ObjectId
+        {
+          $lookup: {
+            from: "users",
+            localField: "userObjId",
+            foreignField: "_id",
+            as: "user",
+          },
+        },
+
+        { $addFields: { user: { $arrayElemAt: ["$user", 0] } } },
+
+        {
+          $addFields: {
+            avgOrderValue: {
+              $cond: [
+                { $eq: ["$orderCount", 0] },
+                0,
+                { $divide: ["$totalSpent", "$orderCount"] },
+              ],
+            },
+          },
+        },
+
+        {
+          $project: {
+            _id: 0,
+            userId: "$_id",
+            user: {
+              userId: "$user._id",
+              name: "$user.name",
+              email: "$user.email",
+              whatsapp: "$user.whatsAppNumber",
+            },
+            orders: 1,
+            orderCount: 1,
+            totalSpent: 1,
+            avgOrderValue: 1,
+          },
+        },
+      ]);
+
+      return {
+        message: "Customers with order summary retrieved successfully",
+        data: customersData,
+        customerCount: customersData.length,
+      };
+    } catch (error) {
+      console.log(error);
+      throw new InternalServerErrorException(
+        "Failed to retrieve customers order summary"
+      );
+    }
+  }
+
+  async deleteOrder(orderId: string) {
+    try {
+      const order = await this.orderModel.findOne({ orderId: orderId });
+      if (!order) {
+        throw new NotFoundException("Order Not Found");
+      }
+
+      await this.orderModel.deleteOne({ orderId: orderId });
+      return { message: "Order Deleted Successfully" };
+    } catch (error) {
+      console.log(error);
+      throw error;
+    }
+  }
 }
