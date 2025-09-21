@@ -8,45 +8,26 @@ export class Organizer {
   @Prop({ required: true })
   name: string;
 
-  @Prop({ required: true })
-  organizationName: string;
-
-  @Prop({ required: true })
-  phone: string;
-
   @Prop({ required: true, unique: true })
   email: string;
 
   @Prop({ required: true })
-  password: string;
+  organizationName: string;
 
-  @Prop()
-  logo: string; // URL or path to logo image
+  @Prop({ required: false })
+  phone: string;
 
-  @Prop()
-  website: string;
+  @Prop({ required: true, unique: true })
+  businessEmail: string; // New field from frontend
+
+  @Prop({ required: true, unique: true })
+  whatsAppNumber: string; // New field from frontend
 
   @Prop()
   address: string;
 
   @Prop()
   bio: string;
-
-  @Prop({
-    type: {
-      twitter: String,
-      linkedin: String,
-      instagram: String,
-      facebook: String,
-    },
-    default: {},
-  })
-  socialMedia: {
-    twitter?: string;
-    linkedin?: string;
-    instagram?: string;
-    facebook?: string;
-  };
 
   @Prop({ default: false })
   approved: boolean;

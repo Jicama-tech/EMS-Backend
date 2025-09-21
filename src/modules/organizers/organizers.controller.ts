@@ -23,6 +23,32 @@ export class OrganizersController {
     return this.organizersService.create(body);
   }
 
+  @Post("register")
+  async register(@Body() dto: CreateOrganizerDto) {
+    return await this.organizersService.registerOrganizer(dto);
+  }
+
+  // New endpoint to request an OTP
+  @Post("request-otp")
+  async requestOTP(@Body("businessEmail") email: string) {
+    return this.organizersService.requestOTP(email);
+  }
+
+  // New endpoint to verify the OTP and log in
+  @Post("login")
+  async verifyOTP(
+    @Body("businessEmail") email: string,
+    @Body("otp") otp: string
+  ) {
+    return this.organizersService.verifyOTP(email, otp);
+  }
+
+  // New endpoint to resend the OTP
+  @Post("resend-otp")
+  async resendOTP(@Body("businessEmail") email: string) {
+    return this.organizersService.resendOTP(email);
+  }
+
   @Get("events")
   @UseGuards(AuthGuard("jwt"))
   async list(@Req() req) {
@@ -33,21 +59,6 @@ export class OrganizersController {
       console.log(error);
       throw error;
     }
-  }
-
-  @Post("login")
-  async login(@Body() body: LoginDto) {
-    try {
-      return await this.organizersService.login(body);
-    } catch (error) {
-      console.log(error);
-      throw error;
-    }
-  }
-
-  @Post("register")
-  async register(@Body() dto: CreateOrganizerDto) {
-    return await this.organizersService.registerOrganizer(dto);
   }
 
   @Get("dashboard-data")
@@ -63,13 +74,19 @@ export class OrganizersController {
   }
 
   @Get(":email")
-  async get(@Param("email") email: string) {
+  async getByEmail(@Param("email") email: string) {
     try {
       return await this.organizersService.findByEmail(email);
     } catch (error) {
       console.log(error);
       throw error;
     }
+  }
+
+  @Get(":id")
+  @UseGuards(AuthGuard("jwt"))
+  async getProfile(@Param("id") id: string) {
+    return this.organizersService.getprofile(id);
   }
 
   @Patch(":id/approve")

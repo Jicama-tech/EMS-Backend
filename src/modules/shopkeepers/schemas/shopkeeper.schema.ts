@@ -38,6 +38,9 @@ export class Shopkeeper {
   @Prop({ required: true })
   whatsappNumber: string;
 
+  @Prop({ default: 0 })
+  taxPercentage: number;
+
   @Prop({ default: false })
   approved: boolean;
 

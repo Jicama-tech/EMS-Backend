@@ -411,6 +411,7 @@ export class ShopkeepersService {
       phone?: string;
       address?: string;
       description?: string;
+      taxPercentage?: string;
       businessCategory?: string;
       paymentURL?: string; // keep if you still send a string
     },
@@ -433,6 +434,8 @@ export class ShopkeepersService {
     if (body.phone !== undefined) update.phone = body.phone;
     if (body.address !== undefined) update.address = body.address;
     if (body.description !== undefined) update.description = body.description;
+    if (body.taxPercentage !== undefined)
+      update.taxPercentage = body.taxPercentage;
     if (body.businessCategory !== undefined)
       update.businessCategory = body.businessCategory;
     if (body.paymentURL !== undefined) update.paymentURL = body.paymentURL;

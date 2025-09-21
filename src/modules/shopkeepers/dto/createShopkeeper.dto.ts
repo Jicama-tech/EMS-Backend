@@ -72,6 +72,9 @@ export class CreateShopkeeperDto {
   followers?: number;
 
   @IsOptional()
+  taxPercentage?: number;
+
+  @IsOptional()
   @IsString()
   paymentURL: string;
 }

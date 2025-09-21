@@ -3,31 +3,33 @@ import {
   IsString,
   MinLength,
   IsOptional,
-  IsObject,
   IsNotEmpty,
 } from "class-validator";
 
 export class CreateOrganizerDto {
   @IsString()
+  @IsNotEmpty()
   name: string;
 
   @IsEmail()
+  @IsNotEmpty()
   email: string;
-
-  @IsString()
-  @MinLength(8)
-  password: string;
 
   @IsString()
   @IsNotEmpty()
   organizationName: string;
 
   @IsString()
+  @IsNotEmpty()
   phone: string;
 
-  @IsOptional()
   @IsString()
-  website?: string;
+  @IsNotEmpty()
+  businessEmail: string; // New field from frontend
+
+  @IsString()
+  @IsNotEmpty()
+  whatsAppNumber: string; // New field from frontend
 
   @IsOptional()
   @IsString()
@@ -36,17 +38,4 @@ export class CreateOrganizerDto {
   @IsOptional()
   @IsString()
   bio?: string;
-
-  @IsOptional()
-  @IsString()
-  logo?: string;
-
-  @IsOptional()
-  @IsObject()
-  socialMedia?: {
-    twitter?: string;
-    linkedin?: string;
-    instagram?: string;
-    facebook?: string;
-  };
 }
