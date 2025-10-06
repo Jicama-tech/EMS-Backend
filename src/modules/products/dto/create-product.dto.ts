@@ -11,6 +11,7 @@ import {
   IsMongoId,
   IsNotEmpty,
   Min,
+  ArrayMaxSize,
 } from "class-validator";
 import { Type } from "class-transformer";
 
@@ -125,6 +126,14 @@ export class CreateProductDto {
   @IsString()
   barcode?: string;
 
+  @IsNumber()
+  @IsNotEmpty()
+  price: number;
+
+  @IsOptional()
+  @IsNumber()
+  compareAtPrice?: number;
+
   @IsString()
   @IsNotEmpty()
   category: string;
@@ -137,12 +146,29 @@ export class CreateProductDto {
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
+  @ArrayMaxSize(3, { message: "Maximum 3 images are allowed per product" })
   images?: string[];
 
+  // Product-level inventory (when no subcategories exist)
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  inventory?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  trackQuantity?: boolean;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  lowStockThreshold?: number;
+
+  @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => ProductSubcategoryDto)
-  subcategories: ProductSubcategoryDto[];
+  subcategories?: ProductSubcategoryDto[];
 
   @IsEnum(["active", "draft", "archived"])
   status: "active" | "draft" | "archived";

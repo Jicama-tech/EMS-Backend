@@ -21,10 +21,6 @@ export class CreateOrganizerDto {
 
   @IsString()
   @IsNotEmpty()
-  phone: string;
-
-  @IsString()
-  @IsNotEmpty()
   businessEmail: string; // New field from frontend
 
   @IsString()
@@ -34,6 +30,10 @@ export class CreateOrganizerDto {
   @IsOptional()
   @IsString()
   address?: string;
+
+  @IsOptional()
+  @IsString()
+  phoneNumber: string;
 
   @IsOptional()
   @IsString()

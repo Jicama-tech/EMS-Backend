@@ -15,6 +15,7 @@ import { OtpModule } from "./modules/otp/otp.module";
 import { ShopkeeperStoresModule } from "./modules/shopkeeper-stores/shopkeeper-stores.module";
 import { OrdersModule } from "./modules/orders/orders.module";
 import { PaymentsModule } from "./modules/payments/payments.module";
+import { TicketsModule } from "./modules/tickets/tickets.module";
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { PaymentsModule } from "./modules/payments/payments.module";
     ProductsModule,
     OrdersModule,
     PaymentsModule,
+    TicketsModule,
   ],
 })
 export class AppModule {}

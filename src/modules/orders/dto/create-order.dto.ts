@@ -17,6 +17,7 @@ export enum OrderStatus {
   Ready = "ready",
   Shipped = "shipped",
   Cancelled = "cancelled",
+  Completed = "completed",
 }
 
 export enum OrderType {

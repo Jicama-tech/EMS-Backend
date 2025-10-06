@@ -1,4 +1,4 @@
-import { Module } from "@nestjs/common";
+import { forwardRef, Module } from "@nestjs/common";
 import { MongooseModule } from "@nestjs/mongoose";
 import { OrganizersService } from "./organizers.service";
 import { OrganizersController } from "./organizers.controller";
@@ -19,7 +19,7 @@ import { MailModule } from "../roles/mail.module";
       { name: "User", schema: UserSchema },
       { name: "Otp", schema: OtpSchema },
     ]),
-    OtpModule,
+    forwardRef(() => OtpModule),
     MailModule,
   ],
   providers: [OrganizersService, JwtService, MailService],

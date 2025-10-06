@@ -166,4 +166,13 @@ export class UsersController {
   //     throw error;
   //   }
   // }
+
+  @Post("get-by-email")
+  async getProfile(@Body() email: string) {
+    try {
+      return await this.usersService.findByEmail(email);
+    } catch (error) {
+      throw error;
+    }
+  }
 }

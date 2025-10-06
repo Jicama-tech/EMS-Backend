@@ -27,6 +27,15 @@ export class Organizer {
   address: string;
 
   @Prop()
+  slug: string;
+
+  @Prop()
+  phoneNumber: string;
+
+  @Prop()
+  paymentURL: string;
+
+  @Prop()
   bio: string;
 
   @Prop({ default: false })

@@ -13,6 +13,7 @@ import { User } from "../users/schemas/user.schema";
 import { Shopkeeper } from "../shopkeepers/schemas/shopkeeper.schema";
 import { MailService } from "../roles/mail.service";
 import axios from "axios";
+import * as PDFKit from "pdfkit";
 
 @Injectable()
 export class OrdersService {
@@ -54,6 +55,132 @@ export class OrdersService {
     }
   }
 
+  async generateReceipt(orderId: string): Promise<Buffer> {
+    const order = await this.orderModel
+      .findOne({ _id: orderId })
+      .populate("userId")
+      .populate("shopkeeperId")
+      .exec();
+
+    const user = order.userId;
+    const shopkeeper = order.shopkeeperId;
+
+    const customerDetail = await this.userModel.findOne({ _id: user });
+    const shopkeeperDetail = await this.shopkeeperModel.findOne({
+      _id: shopkeeper,
+    });
+
+    if (!shopkeeperDetail) throw new NotFoundException("Shopkeeper Not Found");
+    if (!customerDetail) throw new NotFoundException("Customer Not Found");
+
+    return new Promise((resolve, reject) => {
+      try {
+        const PDFDocument = (PDFKit as any).default || PDFKit; // Fix for PDFKit import
+        const doc = new PDFDocument({
+          size: [400, 650], // 58mm width in points, variable height
+          margins: { top: 10, bottom: 10, left: 10, right: 10 },
+        });
+
+        const chunks: Buffer[] = [];
+        doc.on("data", (chunk) => chunks.push(chunk));
+        doc.on("end", () => resolve(Buffer.concat(chunks)));
+        doc.on("error", (error) => reject(error));
+
+        // Store/Business Header - Shopkeeper info first
+        doc
+          .fontSize(32)
+          .font("Helvetica-Bold")
+          .text(shopkeeperDetail.shopName || "Shop Name", {
+            align: "center",
+          });
+        doc.fontSize(28).font("Helvetica");
+        doc.text(`Phone: ${shopkeeperDetail.whatsappNumber || "N/A"}`, {
+          align: "center",
+        });
+        if (shopkeeperDetail.businessEmail) {
+          doc.text(`Email: ${shopkeeperDetail.businessEmail}`, {
+            align: "center",
+          });
+        }
+        doc.text("--------------------------", {
+          align: "center",
+        });
+
+        // Order Information
+        doc
+          .fontSize(28)
+          .font("Helvetica-Bold")
+          .text(`Order #: ${order._id.toString().slice(-6).toUpperCase()}`);
+        doc
+          .font("Helvetica")
+          .text(`Date: ${new Date(order.createdAt).toLocaleDateString()}`);
+        doc.text(`Time: ${new Date(order.createdAt).toLocaleTimeString()}`);
+        doc.text("--------------------------");
+
+        // Customer Details
+        doc.font("Helvetica-Bold").text("Customer:");
+        doc.font("Helvetica").text(`Name: ${customerDetail.name}`);
+        doc.text(`Phone: ${customerDetail.whatsAppNumber}`);
+        if (customerDetail.email) {
+          doc.text(`Email: ${customerDetail.email}`);
+        }
+        doc.text("--------------------------");
+
+        // Items
+        doc.font("Helvetica-Bold").text("Items:");
+        let itemTotal = 0;
+
+        order.items.forEach((item) => {
+          const itemPrice = item.price * item.quantity;
+          itemTotal += itemPrice;
+
+          doc.font("Helvetica").fontSize(28);
+          if (item.subcategoryName) {
+            doc.text(
+              `${item.productName}: (${item.subcategoryName}, ${item.variantTitle})`
+            );
+          } else {
+            doc.text(`${item.productName}:`);
+          }
+          doc.text(
+            `${item.quantity} x $${item.price.toFixed(2)} = $${itemPrice.toFixed(2)}`
+          );
+          doc.text(""); // Add spacing
+        });
+
+        doc.text("--------------------------");
+
+        // Total
+        doc.font("Helvetica-Bold").fontSize(26);
+        doc.text(
+          `Tax: $${((shopkeeperDetail.taxPercentage * itemTotal) / 100).toFixed(2)}`,
+          {
+            align: "right",
+          }
+        );
+        doc.text(`Total: $${order.totalAmount.toFixed(2)}`, { align: "right" });
+
+        // Payment Infos
+        doc.fontSize(28).font("Helvetica");
+        doc.text(`Payment: Online`);
+        doc.text(`Status: Paid`);
+
+        doc.text("--------------------------");
+        doc.fontSize(26).text("Thank you for your order!", { align: "center" });
+        doc.text("Visit us again!", { align: "center" });
+
+        // Spacing at the end
+        doc.text("");
+        doc.text("");
+        doc.text("");
+
+        doc.end();
+      } catch (error) {
+        reject(error);
+      }
+    });
+  }
+
   async updateOrderStatus(
     orderId: string,
     newStatus: OrderStatus
@@ -81,6 +208,11 @@ export class OrdersService {
         );
       }
 
+      let receipt: Buffer | undefined;
+
+      if (newStatus === "processing") {
+        receipt = await this.generateReceipt(orderId);
+      }
       order.status = newStatus;
 
       if (newStatus === OrderStatus.Cancelled) {
@@ -156,43 +288,66 @@ export class OrdersService {
         throw new NotFoundException(`Product ${item.productId} not found`);
       }
 
-      const subcategory = product.subcategories?.find(
-        (sub: any) => sub.name === item.subcategoryName
-      );
-      if (!subcategory) {
-        throw new NotFoundException(
-          `Subcategory '${item.subcategoryName}' not found`
+      // Check if this is a product with subcategories and variants
+      if (item.subcategoryName && item.variantTitle) {
+        const subcategory = product.subcategories?.find(
+          (sub: any) => sub.name === item.subcategoryName
+        );
+        if (!subcategory) {
+          throw new NotFoundException(
+            `Subcategory '${item.subcategoryName}' not found`
+          );
+        }
+
+        const variant = subcategory.variants?.find(
+          (v: any) => v.title === item.variantTitle
+        );
+        if (!variant) {
+          throw new NotFoundException(
+            `Variant '${item.variantTitle}' not found`
+          );
+        }
+
+        const quantityChange =
+          action === "deduct" ? -item.quantity : item.quantity;
+
+        if (action === "deduct" && variant.inventory < item.quantity) {
+          throw new InternalServerErrorException(
+            `Insufficient stock for ${item.productName}. Available: ${variant.inventory}, Requested: ${item.quantity}`
+          );
+        }
+
+        variant.inventory += quantityChange;
+
+        const subcategoryIndex = product.subcategories.findIndex(
+          (sub: any) => sub.name === item.subcategoryName
+        );
+        const variantIndex = subcategory.variants.findIndex(
+          (v: any) => v.title === item.variantTitle
+        );
+
+        product.markModified(
+          `subcategories.${subcategoryIndex}.variants.${variantIndex}.inventory`
         );
       }
+      // Handle products without subcategories (simple products)
+      else {
+        // Check if product tracks inventory
+        if (product.trackQuantity) {
+          const quantityChange =
+            action === "deduct" ? -item.quantity : item.quantity;
 
-      const variant = subcategory.variants?.find(
-        (v: any) => v.title === item.variantTitle
-      );
-      if (!variant) {
-        throw new NotFoundException(`Variant '${item.variantTitle}' not found`);
+          if (action === "deduct" && product.inventory < item.quantity) {
+            throw new InternalServerErrorException(
+              `Insufficient stock for ${item.productName}. Available: ${product.inventory}, Requested: ${item.quantity}`
+            );
+          }
+
+          product.inventory += quantityChange;
+          product.markModified("inventory");
+        }
       }
 
-      const quantityChange =
-        action === "deduct" ? -item.quantity : item.quantity;
-
-      if (action === "deduct" && variant.inventory < item.quantity) {
-        throw new InternalServerErrorException(
-          `Insufficient stock for ${item.productName}. Available: ${variant.inventory}, Requested: ${item.quantity}`
-        );
-      }
-
-      variant.inventory += quantityChange;
-
-      const subcategoryIndex = product.subcategories.findIndex(
-        (sub: any) => sub.name === item.subcategoryName
-      );
-      const variantIndex = subcategory.variants.findIndex(
-        (v: any) => v.title === item.variantTitle
-      );
-
-      product.markModified(
-        `subcategories.${subcategoryIndex}.variants.${variantIndex}.inventory`
-      );
       await product.save();
     }
   }
@@ -259,107 +414,6 @@ export class OrdersService {
       throw error; // Re-throw to propagate the error
     }
   }
-
-  // Professional Email for Order Status
-  // private async sendOrderStatusEmail(
-  //   email: string,
-  //   userName: string,
-  //   orderId: string,
-  //   accepted: boolean,
-  //   status: string,
-  //   amount: number,
-  //   shopkeeperName: string
-  // ) {
-  //   try {
-  //     console.log(`[DEBUG] Attempting to send email to ${email}`);
-  //     const subject = accepted
-  //       ? "Order Confirmed - Payment Accepted"
-  //       : "Order Rejected - Payment Declined";
-
-  //     const emailData = {
-  //       name: userName,
-  //       email: email,
-  //       orderId: orderId,
-  //       status: status.toUpperCase(),
-  //       accepted: accepted,
-  //       amount: amount.toFixed(2),
-  //       shopkeeperName: shopkeeperName,
-  //       date: new Date().toLocaleString(),
-  //     };
-
-  //     console.log(emailData, "EmailData");
-
-  //     const htmlContent = this.generateOrderStatusEmailTemplate(emailData);
-
-  //     await this.mailService.sendMail({
-  //       to: email,
-  //       subject: subject,
-  //       html: htmlContent,
-  //     });
-  //     console.log(`[DEBUG] Email sent successfully to ${email}`);
-  //   } catch (error) {
-  //     console.error(`[DEBUG] Email send error: ${error.message}`);
-  //     throw error; // Re-throw to propagate the error
-  //   }
-  // }
-
-  //   private generateOrderStatusEmailTemplate(data: any): string {
-  //     const statusColor = data.accepted ? "#22c55e" : "#ef4444";
-  //     // const statusIcon = data.accepted ? "✅" : "❌";
-
-  //     return `
-  // <!DOCTYPE html>
-  // <html>
-  // <head>
-  //   <meta charset="utf-8" />
-  //   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  //   <title>Order ${data.accepted ? "Confirmed" : "Rejected"}</title>
-  // </head>
-  // <body style="font-family: Arial, sans-serif; line-height: 1.6; margin: 0; padding: 20px; background-color: #f4f4f4;">
-  //   <div style="max-width: 600px; margin: auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 0 10px rgba(0,0,0,0.1);">
-  //     <div style="text-align: center; margin-bottom: 30px;">
-  //       <h1 style="color: ${statusColor}; margin: 0;"> Order ${data.accepted ? "Confirmed" : "Rejected"}</h1>
-  //       <p style="color: #666; margin: 10px 0;">Your order status has been updated</p>
-  //     </div>
-
-  //     <h2 style="color: #333;">Hello ${data.name},</h2>
-
-  //     <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; border-left: 4px solid ${statusColor}; margin: 20px 0;">
-  //       <h3 style="margin-top: 0; color: #333;">📋 Order Information</h3>
-  //       <table style="width: 100%; border-collapse: collapse;">
-  //         <tr><td style="padding: 8px 0; font-weight: bold;">Order ID:</td><td style="padding: 8px 0;">${data.orderId}</td></tr>
-  //         <tr><td style="padding: 8px 0; font-weight: bold;">Status:</td><td style="padding: 8px 0; color: ${statusColor}; font-weight: bold;">${data.status}</td></tr>
-  //         <tr><td style="padding: 8px 0; font-weight: bold;">Amount:</td><td style="padding: 8px 0;">₹${data.amount}</td></tr>
-  //         <tr><td style="padding: 8px 0; font-weight: bold;">Merchant:</td><td style="padding: 8px 0;">${data.shopkeeperName}</td></tr>
-  //         <tr><td style="padding: 8px 0; font-weight: bold;">Updated:</td><td style="padding: 8px 0;">${data.date}</td></tr>
-  //       </table>
-  //     </div>
-
-  //     <div style="margin: 30px 0;">
-  //       ${
-  //         data.accepted
-  //           ? `<p style="color: #22c55e; font-size: 16px;"><strong>Great news!</strong> Your payment has been accepted. Your order is now being processed.</p>
-  //              <p>We will keep you updated about your order progress.</p>`
-  //           : `<p style="color: #ef4444; font-size: 16px;"><strong>Order Rejected.</strong> The payment was not accepted.</p>
-  //              <p>Please contact the merchant for more info or place a new order.</p>`
-  //       }
-  //     </div>
-
-  //     <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-  //       <h4 style="margin-top: 0; color: #1976d2;">Need Help?</h4>
-  //       <p>Contact your merchant directly for any questions.</p>
-  //       <p><strong>Merchant:</strong> ${data.shopkeeperName}</p>
-  //     </div>
-
-  //     <div style="text-align: center; font-size: 12px; color: #999;">
-  //       <p>This is an automated message. Please do not reply.</p>
-  //       <p>© ${new Date().getFullYear()} Event SH</p>
-  //     </div>
-  //   </div>
-  // </body>
-  // </html>
-  // `;
-  //   }
 
   async getOrderById(orderId: string): Promise<Order> {
     try {
@@ -530,5 +584,221 @@ export class OrdersService {
       console.log(error);
       throw error;
     }
+  }
+
+  async generatePrintReceipt(orderId: string): Promise<any[]> {
+    const order = await this.orderModel
+      .findOne({ _id: orderId })
+      .populate("userId")
+      .populate("shopkeeperId")
+      .lean();
+
+    if (!order) {
+      throw new NotFoundException("Order not found");
+    }
+
+    const user = await this.userModel.findOne({ _id: order.userId });
+    if (!user) {
+      throw new NotFoundException("User Not Found");
+    }
+    const shopkeeper = await this.shopkeeperModel.findOne({
+      _id: order.shopkeeperId,
+    });
+    if (!shopkeeper) {
+      throw new NotFoundException("Shopkeeper Not Found");
+    }
+
+    const printData = [];
+
+    // Header/Title
+    printData.push({
+      type: 0,
+      content: "ORDER RECEIPT",
+      bold: 1,
+      align: 1, // center
+      format: 2, // double Height + Width
+    });
+
+    printData.push({ type: 0, content: " ", bold: 0, align: 0 });
+
+    printData.push({
+      type: 0,
+      content: `Order ID: ${order._id.toString().slice(-6).toUpperCase()}`,
+      bold: 1,
+      align: 0,
+      format: 0,
+    });
+
+    printData.push({
+      type: 0,
+      content: `Customer: ${user.name}`,
+      bold: 0,
+      align: 0,
+      format: 0,
+    });
+
+    if (user.email) {
+      printData.push({
+        type: 0,
+        content: `Email: ${user.email}`,
+        bold: 0,
+        align: 0,
+        format: 0,
+      });
+    }
+
+    if (user.whatsAppNumber) {
+      printData.push({
+        type: 0,
+        content: `WhatsApp: ${user.whatsAppNumber}`,
+        bold: 0,
+        align: 0,
+        format: 0,
+      });
+    }
+
+    printData.push({ type: 0, content: " ", bold: 0, align: 0 });
+
+    printData.push({
+      type: 0,
+      content: "ITEMS:",
+      bold: 1,
+      align: 0,
+      format: 0,
+    });
+    printData.push({
+      type: 0,
+      content: "--------------------------------",
+      bold: 0,
+      align: 0,
+      format: 0,
+    });
+
+    order.items.forEach((item) => {
+      printData.push({
+        type: 0,
+        content: item.productName,
+        bold: 0,
+        align: 0,
+        format: 0,
+      });
+
+      if (item.variantTitle) {
+        printData.push({
+          type: 0,
+          content: `Variant: ${item.variantTitle}`,
+          bold: 0,
+          align: 0,
+          format: 4, // small text
+        });
+      }
+
+      printData.push({
+        type: 0,
+        content: `Qty: ${item.quantity} x $${item.price.toFixed(2)} = $${(item.quantity * item.price).toFixed(2)}`,
+        bold: 0,
+        align: 0,
+        format: 0,
+      });
+
+      printData.push({ type: 0, content: " ", bold: 0, align: 0 });
+    });
+
+    printData.push({
+      type: 0,
+      content: "--------------------------------",
+      bold: 0,
+      align: 0,
+      format: 0,
+    });
+
+    printData.push({
+      type: 0,
+      content: `TOTAL: $${order.totalAmount.toFixed(2)}`,
+      bold: 1,
+      align: 2, // right align
+      format: 1, // double height
+    });
+
+    printData.push({ type: 0, content: " ", bold: 0, align: 0 });
+
+    printData.push({
+      type: 0,
+      content: `Order Type: ${order.orderType.toUpperCase()}`,
+      bold: 1,
+      align: 0,
+      format: 0,
+    });
+
+    if (order.orderType === "delivery" && order.deliveryAddress) {
+      printData.push({
+        type: 0,
+        content: "Delivery Address:",
+        bold: 0,
+        align: 0,
+        format: 0,
+      });
+      printData.push({
+        type: 0,
+        content: order.deliveryAddress.street,
+        bold: 0,
+        align: 0,
+        format: 0,
+      });
+      printData.push({
+        type: 0,
+        content: `${order.deliveryAddress.city}, ${order.deliveryAddress.state}`,
+        bold: 0,
+        align: 0,
+        format: 0,
+      });
+
+      if (order.deliveryAddress.instructions) {
+        printData.push({
+          type: 0,
+          content: `Instructions: ${order.deliveryAddress.instructions}`,
+          bold: 0,
+          align: 0,
+          format: 0,
+        });
+      }
+    }
+
+    if (order.orderType === "pickup" && order.pickupDate && order.pickupTime) {
+      printData.push({
+        type: 0,
+        content: `Pickup Date: ${new Date(order.pickupDate).toLocaleDateString()}`,
+        bold: 0,
+        align: 0,
+        format: 0,
+      });
+      printData.push({
+        type: 0,
+        content: `Pickup Time: ${order.pickupTime}`,
+        bold: 0,
+        align: 0,
+        format: 0,
+      });
+    }
+
+    printData.push({ type: 0, content: " ", bold: 0, align: 0 });
+
+    printData.push({
+      type: 0,
+      content: `Order Date: ${new Date(order.createdAt).toLocaleDateString()}`,
+      bold: 0,
+      align: 1, // center
+      format: 4, // small text
+    });
+
+    printData.push({
+      type: 0,
+      content: "Thank you for your business!",
+      bold: 1,
+      align: 1,
+      format: 0,
+    });
+
+    return printData;
   }
 }

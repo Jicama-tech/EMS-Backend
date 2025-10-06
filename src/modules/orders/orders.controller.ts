@@ -9,11 +9,14 @@ import {
   BadRequestException,
   InternalServerErrorException,
   Delete,
+  Res,
+  NotFoundException,
 } from "@nestjs/common";
 import { OrdersService } from "./orders.service";
 import { CreateOrderDto } from "./dto/create-order.dto";
 import { OrderStatus } from "./entities/order.entity";
 import { UpdateOrderDto } from "./dto/update-order.dto";
+import { Response } from "express";
 
 @Controller("orders")
 export class OrdersController {
@@ -81,6 +84,25 @@ export class OrdersController {
     }
   }
 
+  @Get(":id/receipt")
+  async downloadReceipt(@Param("id") id: string, @Res() res: Response) {
+    try {
+      const receipt = await this.ordersService.generateReceipt(id);
+
+      console.log(receipt);
+
+      res.set({
+        "Content-Type": "application/pdf",
+        "Content-Disposition": `attachment; filename=receipt-${id.slice(-8)}.pdf`,
+        "Content-Length": receipt.length,
+      });
+
+      return res.end(receipt);
+    } catch (error) {
+      throw new InternalServerErrorException("Failed to generate receipt");
+    }
+  }
+
   @Delete("delete-order/:orderId")
   async deleteOrder(@Param("orderId") orderId: string) {
     try {
@@ -88,5 +110,11 @@ export class OrdersController {
     } catch (error) {
       throw error;
     }
+  }
+
+  @Get("print-receipt/:id")
+  async getPrintReceipt(@Param("id") orderId: string) {
+    const printData = await this.ordersService.generatePrintReceipt(orderId);
+    return printData;
   }
 }

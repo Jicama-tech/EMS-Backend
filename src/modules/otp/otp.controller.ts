@@ -75,6 +75,21 @@ export class OtpController {
     );
   }
 
+  @Post("verify-chat-otp")
+  async verifyChatOTP(
+    @Body() body: { whatsappNumber: string; role: string; otp: string }
+  ) {
+    try {
+      return this.otpService.VerifyWhatsAppOtp(
+        body.whatsappNumber,
+        body.role,
+        body.otp
+      );
+    } catch (error) {
+      throw error;
+    }
+  }
+
   @Get()
   findAll() {
     return this.otpService.findAll();

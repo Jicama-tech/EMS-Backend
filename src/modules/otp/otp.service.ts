@@ -3,6 +3,7 @@ import {
   UnauthorizedException,
   BadRequestException,
   Logger,
+  NotFoundException,
   OnModuleInit,
 } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose/dist";
@@ -19,6 +20,8 @@ import makeWASocket, {
   WASocket,
 } from "baileys";
 import * as qrcode from "qrcode";
+import { ShopkeepersService } from "../shopkeepers/shopkeepers.service";
+import { OrganizersService } from "../organizers/organizers.service";
 
 @Injectable()
 export class OtpService implements OnModuleInit {
@@ -37,7 +40,9 @@ export class OtpService implements OnModuleInit {
 
   constructor(
     @InjectModel(Otp.name) private otpModel: Model<Otp>,
-    private mailService: MailService
+    private mailService: MailService,
+    private readonly shopkeeperService: ShopkeepersService,
+    private readonly organizerService: OrganizersService
   ) {}
 
   async onModuleInit() {
@@ -267,6 +272,53 @@ export class OtpService implements OnModuleInit {
     return { message: "OTP sent to WhatsApp" };
   }
 
+  async SendWhatsAppOtp(whatsappNumber: string, role: string) {
+    if (!whatsappNumber)
+      throw new BadRequestException("WhatsApp number is required");
+    const digits = this.normalizePhone(whatsappNumber);
+    if (digits.length < 8)
+      throw new BadRequestException("Invalid WhatsApp number");
+
+    const identifier = digits;
+    const channel = "whatsapp";
+
+    const existing = await this.otpModel.findOne({ channel, role, identifier });
+    if (
+      existing?.lastSentAt &&
+      Date.now() - new Date(existing.lastSentAt).getTime() <
+        this.RESEND_COOLDOWN_MS
+    ) {
+      throw new BadRequestException("Please wait before requesting a new OTP");
+    }
+
+    const otp = this.generateOtp();
+    const expiresAt = new Date(Date.now() + this.WHATSAPP_TTL_MS);
+
+    await this.otpModel.findOneAndUpdate(
+      { channel, role, identifier },
+      {
+        otp,
+        expiresAt,
+        attempts: 0,
+        verified: false,
+        lastSentAt: new Date(),
+        channel,
+        identifier,
+        role,
+      } as any,
+      { upsert: true, new: true }
+    );
+
+    const text =
+      `Your verification code is ${otp}.\n` +
+      `It expires in 5 minutes. Do not share it with anyone.\n\n` +
+      `EventSh Verification`;
+
+    await this.sendWhatsAppMessage(digits, text);
+
+    return { message: "OTP sent to WhatsApp" };
+  }
+
   async verifyWhatsAppOtp(whatsappNumber: string, role: string, otp: string) {
     const digits = this.normalizePhone(whatsappNumber);
     const identifier = digits;
@@ -287,6 +339,48 @@ export class OtpService implements OnModuleInit {
 
     await this.otpModel.deleteOne({ channel, role, identifier });
     return { message: "OTP verified" };
+  }
+
+  async VerifyWhatsAppOtp(whatsappNumber: string, role: string, otp: string) {
+    const digits = this.normalizePhone(whatsappNumber);
+    const identifier = digits;
+    const channel = "whatsapp";
+
+    const record = await this.otpModel.findOne({ channel, role, identifier });
+    if (!record || record.expiresAt < new Date() || record.otp !== otp) {
+      if (record) {
+        if (record.attempts + 1 >= this.MAX_ATTEMPTS) {
+          await this.otpModel.deleteOne({ channel, role, identifier });
+        } else {
+          record.attempts += 1;
+          await record.save();
+        }
+      }
+      throw new UnauthorizedException("Invalid or expired OTP");
+    }
+
+    let token = null;
+
+    if (record.role === "shopkeeper") {
+      const shopkeeper =
+        await this.shopkeeperService.findByWhatsAppNumber(whatsappNumber);
+      if (!shopkeeper) {
+        throw new NotFoundException("Token not found");
+      }
+
+      token = shopkeeper.token;
+    } else {
+      const organizer =
+        await this.organizerService.findByWhatsAppNumber(whatsappNumber);
+      if (!organizer) {
+        throw new NotFoundException("Token Not Found");
+      }
+
+      token = organizer.token;
+    }
+
+    await this.otpModel.deleteOne({ channel, role, identifier });
+    return { message: "OTP verified", data: token };
   }
 
   // =========================

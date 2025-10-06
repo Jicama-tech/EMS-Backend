@@ -7,12 +7,12 @@ export class MailService {
 
   constructor() {
     this.transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST || "smtp.hostinger.com",
+      host: process.env.SMTP_HOST || "smtp.gmail.com",
       port: Number(process.env.SMTP_PORT) || 465,
       secure: true, // true for SSL port 465, false for TLS 587
       auth: {
-        user: process.env.SMTP_USER || "admin@eventsh.com",
-        pass: process.env.SMTP_PASS,
+        user: process.env.SMTP_USER || "attendancemanagement2025@gmail.com",
+        pass: process.env.SMTP_PASS || "kigu gpta alwr jbbf",
       },
     });
   }
@@ -145,6 +145,7 @@ export class MailService {
     otp: string;
     businessName: string;
   }) {
+    console.log("Vansh Shar,a ");
     await this.transporter.sendMail({
       from: `"EventSH Security" <${process.env.SMTP_USER}>`,
       to: data.email,
@@ -262,6 +263,32 @@ export class MailService {
         to: options.to,
         subject: options.subject,
         html: options.html,
+      });
+    } catch (err) {
+      console.error("Failed to send email:", err);
+      throw err;
+    }
+  }
+
+  async sendEmail(options: {
+    to: string;
+    subject: string;
+    html: string;
+    attachments?: {
+      filename: string;
+      content: string | Buffer;
+      encoding?: string;
+      cid?: string;
+    }[];
+  }) {
+    try {
+      console.log("Sending mail to:", options.to);
+      await this.transporter.sendMail({
+        from: `"EventSH" <${process.env.SMTP_USER}>`,
+        to: options.to,
+        subject: options.subject,
+        html: options.html,
+        attachments: options.attachments || [],
       });
     } catch (err) {
       console.error("Failed to send email:", err);

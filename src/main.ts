@@ -10,7 +10,7 @@ dotenv.config();
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.enableCors({
-    origin: "https://eventsh.com", // Your frontend's URL
+    origin: "http://localhost:8080", // Your frontend's URL
     methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
     credentials: true, // This is important to allow cookies and authorization headers
   });

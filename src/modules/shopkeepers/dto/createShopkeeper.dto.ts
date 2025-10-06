@@ -1,29 +1,10 @@
 import {
-  IsEmail,
   IsString,
-  MinLength,
   IsNotEmpty,
-  IsObject,
-  ValidateNested,
-  IsBoolean,
+  MinLength,
   IsOptional,
-  IsNumber,
+  IsEmail,
 } from "class-validator";
-import { Type } from "class-transformer";
-
-class BusinessHourDto {
-  @IsString()
-  @IsOptional()
-  open?: string;
-
-  @IsString()
-  @IsOptional()
-  close?: string;
-
-  @IsBoolean()
-  @IsOptional()
-  closed?: boolean;
-}
 
 export class CreateShopkeeperDto {
   @IsString()
@@ -39,8 +20,8 @@ export class CreateShopkeeperDto {
   email: string;
 
   @IsString()
-  @IsNotEmpty()
   @MinLength(8)
+  @IsNotEmpty()
   password: string;
 
   @IsString()
@@ -55,26 +36,15 @@ export class CreateShopkeeperDto {
   @IsOptional()
   description?: string;
 
-  @IsEmail()
-  @IsNotEmpty()
-  businessEmail: string;
-
   @IsString()
   @IsNotEmpty()
-  whatsappNumber: string;
+  whatsappNumber: string; // <-- MAKE REQUIRED
+
+  @IsString()
+  @IsOptional()
+  businessEmail?: string; // <-- MAKE OPTIONAL
 
   @IsString()
   @IsNotEmpty()
   businessCategory: string;
-
-  @IsNumber()
-  @IsOptional()
-  followers?: number;
-
-  @IsOptional()
-  taxPercentage?: number;
-
-  @IsOptional()
-  @IsString()
-  paymentURL: string;
 }

@@ -17,6 +17,9 @@ import { User } from "../users/schemas/user.schema";
 import { MailService } from "../roles/mail.service";
 import { CreateOrganizerDto } from "./dto/createOrganizer.dto";
 import { Otp } from "../otp/entities/otp.entity";
+import { UpdateOrganizerDto } from "./dto/updateOrganizer.dto";
+import * as path from "path";
+import * as fs from "fs";
 
 @Injectable()
 export class OrganizersService {
@@ -74,36 +77,61 @@ export class OrganizersService {
   async getDashboardDataForOrganizer(organizerId: string): Promise<any> {
     const now = new Date();
 
-    const organizer = new Types.ObjectId(organizerId);
+    // Calculate start of today (midnight)
+    const startOfToday = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate(),
+      0,
+      0,
+      0,
+      0
+    );
+
+    // Calculate end of today (just before midnight next day)
+    const endOfToday = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate(),
+      23,
+      59,
+      59,
+      999
+    );
+
+    // Convert organizerId to ObjectId if needed (depends on your schema and ORM)
+    // const organizer = new Types.ObjectId(organizerId);
 
     const currentEvents = await this.eventModel
       .find({
-        organizer: organizer,
-        startDate: { $lte: now },
-        $or: [{ endDate: { $gte: now } }, { endDate: null }],
+        organizer: organizerId,
+        // Events that start before end of today
+        startDate: { $lte: endOfToday },
+        // and endDate is either null or after start of today
+        $or: [{ endDate: { $gte: startOfToday } }, { endDate: null }],
       })
       .lean();
 
     const upcomingEvents = await this.eventModel
       .find({
-        organizer: organizer,
-        startDate: { $gte: now },
+        organizer: organizerId,
+        startDate: { $gt: endOfToday }, // strictly after today
       })
       .lean();
 
     const pastEvents = await this.eventModel
       .find({
-        organizer: organizer,
-        endDate: { $lte: now },
+        organizer: organizerId,
+        endDate: { $lt: startOfToday }, // strictly before today
       })
       .lean();
 
     const totalEvents = await this.eventModel.countDocuments({
-      organizer: organizer,
+      organizer: organizerId,
     });
 
     const totalAttendees = await this.eventModel.aggregate([
-      { $match: { organizer: organizer } },
+      { $match: { organizer: organizerId } },
       { $group: { _id: null, total: { $sum: "$attendees" } } },
     ]);
 
@@ -378,6 +406,36 @@ export class OrganizersService {
     }
   }
 
+  async findByWhatsAppNumber(whatsAppNumber: string) {
+    try {
+      console.log(whatsAppNumber);
+      const organizer = await this.organizerModel.findOne({
+        whatsAppNumber: whatsAppNumber,
+      });
+      console.log(organizer);
+      if (!organizer) {
+        throw new NotFoundException("Organizer Not Found");
+      }
+
+      const payload = {
+        name: organizer.name,
+        email: organizer.email,
+        sub: organizer._id,
+        roles: ["organizer"],
+      };
+
+      const token = this.jwtService.sign(payload, {
+        secret: process.env.JWT_ACCESS_SECRET,
+        expiresIn: "24h",
+      });
+
+      return { message: "Token found", token: token };
+    } catch (error) {
+      console.log(error);
+      throw error;
+    }
+  }
+
   async approve(id: string) {
     return this.organizerModel
       .findByIdAndUpdate(id, { approved: true }, { new: true })
@@ -385,6 +443,117 @@ export class OrganizersService {
   }
 
   async getprofile(id: string) {
-    return this.organizerModel.findById(id).exec();
+    try {
+      const organizer = await this.organizerModel.findOne({ _id: id });
+      console.log(organizer);
+      if (!organizer) {
+        throw new NotFoundException("Organizer Not Found");
+      }
+      return { message: "Organizer Found", data: organizer };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async getOrganizer(id: string) {
+    try {
+      console.log("Calleeedsfjsnafjsdfv");
+      const organizer = await this.organizerModel.find({ _id: id });
+      console.log(organizer);
+      if (!organizer) {
+        throw new NotFoundException("Organizer Not Found");
+      }
+      return { message: "Organizer Found", data: organizer };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async getProfile(id: string) {
+    try {
+      const _id = new Types.ObjectId(id);
+      const organizer = await this.organizerModel.findOne({ _id });
+      if (!organizer) {
+        throw new NotFoundException("Not Found");
+      }
+
+      return { message: "Organizer Found", data: organizer };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async updateProfile(
+    id: string,
+    body: {
+      name?: string;
+      email?: string;
+      organizationName?: string;
+      businessEmail?: string;
+      whatsAppNumber?: string;
+      address?: string;
+      slug?: string;
+      paymentURL?: string;
+      phoneNumber?: string;
+      bio?: string;
+    },
+    paymentQrPublicUrl?: string | null
+  ) {
+    if (!Types.ObjectId.isValid(id)) {
+      throw new BadRequestException("Invalid organizer id");
+    }
+
+    const update: Record<string, any> = {};
+
+    if (body.name !== undefined) update.name = body.name;
+    if (body.email !== undefined) update.email = body.email.toLowerCase();
+    if (body.organizationName !== undefined)
+      update.organizationName = body.organizationName;
+    if (body.phoneNumber !== undefined) update.phoneNumber = body.phoneNumber;
+    if (body.businessEmail !== undefined)
+      update.businessEmail = body.businessEmail.toLowerCase();
+    if (body.whatsAppNumber !== undefined)
+      update.whatsAppNumber = body.whatsAppNumber;
+    if (body.address !== undefined) update.address = body.address;
+    if (body.slug !== undefined) update.slug = body.slug;
+    if (body.paymentURL !== undefined) update.paymentURL = body.paymentURL;
+    if (body.phoneNumber !== undefined) update.phoneNumber = body.phoneNumber;
+    if (body.bio !== undefined) update.bio = body.bio;
+
+    if (paymentQrPublicUrl) {
+      update.paymentURL = paymentQrPublicUrl;
+    }
+
+    const updated = await this.organizerModel
+      .findByIdAndUpdate(id, update, {
+        new: true,
+        runValidators: true,
+      })
+      .lean()
+      .exec();
+
+    console.log(updated, "Vansh Sharma");
+
+    if (!updated) {
+      throw new NotFoundException("Organizer not found");
+    }
+
+    delete (updated as any).password; // if password exists
+
+    return { message: "Profile updated", data: updated };
+  }
+
+  async getOrganizerBySlug(slug: string) {
+    try {
+      const organizer = await this.organizerModel.findOne({ slug: slug });
+      if (!organizer) {
+        throw new NotFoundException("Organizer Not Found");
+      }
+
+      return { message: "Organizer Found", data: organizer };
+    } catch (error) {
+      console.log(error);
+      throw error;
+    }
   }
 }

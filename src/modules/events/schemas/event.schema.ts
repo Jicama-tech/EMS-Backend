@@ -40,7 +40,7 @@ export class Event {
   ticketPrice: string;
 
   @Prop()
-  totalTickets: string;
+  totalTickets: number;
 
   @Prop({ enum: ["public", "private", "unlisted"], default: "public" })
   visibility: string;
@@ -85,17 +85,6 @@ export class Event {
 
   @Prop([String])
   gallery: string[];
-
-  @Prop({
-    type: Object,
-    default: {},
-  })
-  organizerDetails: {
-    name?: string;
-    email?: string;
-    phone?: string;
-    website?: string;
-  };
 
   @Prop({
     type: Object,

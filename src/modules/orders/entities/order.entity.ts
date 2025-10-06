@@ -7,6 +7,7 @@ export enum OrderStatus {
   Ready = "ready", // For pickup orders when ready
   Shipped = "shipped", // When delivery is out for shipping
   Cancelled = "cancelled", // When rejected or cancelled
+  Completed = "completed",
 }
 
 // Additional enum for order type
@@ -52,6 +53,12 @@ export class Order extends Document {
 
   @Prop({ type: String, required: false }) // Store time in "HH:mm" or ISO string as per your logic
   pickupTime?: string;
+
+  @Prop({ default: Date.now })
+  createdAt: Date;
+
+  @Prop({ default: Date.now })
+  updatedAt: Date;
 }
 
 export const OrderSchema = SchemaFactory.createForClass(Order);

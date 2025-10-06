@@ -85,6 +85,8 @@ export class ShopkeepersService {
         approved: true,
       });
 
+      console.log(shopkeeper, "Vansh Shakrna,sfd");
+
       if (!shopkeeper) {
         throw new NotFoundException("Shopkeeper not found or not approved");
       }
@@ -458,5 +460,35 @@ export class ShopkeepersService {
 
     delete (updated as any).password;
     return { message: "Profile updated", data: updated };
+  }
+
+  async findByWhatsAppNumber(whatsAppNumber: string) {
+    try {
+      console.log(whatsAppNumber);
+      const shopkeeper = await this.shopModel.findOne({
+        whatsappNumber: whatsAppNumber,
+      });
+      console.log(shopkeeper);
+      if (!shopkeeper) {
+        throw new NotFoundException("Shopkeeper Not Found");
+      }
+
+      const payload = {
+        name: shopkeeper.name,
+        email: shopkeeper.email,
+        sub: shopkeeper._id,
+        roles: ["shopkeeper"],
+      };
+
+      const token = this.jwtService.sign(payload, {
+        secret: process.env.JWT_ACCESS_SECRET,
+        expiresIn: "24h",
+      });
+
+      return { message: "Token found", token: token };
+    } catch (error) {
+      console.log(error);
+      throw error;
+    }
   }
 }
