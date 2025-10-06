@@ -79,7 +79,6 @@ export class CreateOrderDto {
   shopkeeperId: string;
 
   @IsArray()
-  @ValidateNested({ each: true })
   @Type(() => OrderItemDto)
   items: OrderItemDto[];
 

@@ -14,9 +14,11 @@ import { Shopkeeper } from "../shopkeepers/schemas/shopkeeper.schema";
 import { MailService } from "../roles/mail.service";
 import axios from "axios";
 import * as PDFKit from "pdfkit";
+import { v4 as uuidv4 } from "uuid";
 
 @Injectable()
 export class OrdersService {
+  private printDataStore = new Map<string, any[]>();
   constructor(
     @InjectModel(Order.name) private readonly orderModel: Model<Order>,
     @InjectModel(Product.name) private readonly productModel: Model<Product>,
@@ -800,5 +802,433 @@ export class OrdersService {
     });
 
     return printData;
+  }
+
+  async createPrintData(orderId: string, printData: any[]): Promise<string> {
+    try {
+      const printId = uuidv4();
+
+      // Store print data temporarily (you might want to use Redis in production)
+      this.printDataStore.set(printId, printData);
+
+      // Clean up after 1 hour
+      setTimeout(() => {
+        this.printDataStore.delete(printId);
+      }, 3600000);
+
+      return printId;
+    } catch (error) {
+      throw new InternalServerErrorException("Failed to store print data");
+    }
+  }
+
+  async getPrintData(printId: string): Promise<any[] | null> {
+    try {
+      const printData = this.printDataStore.get(printId);
+      return printData || null;
+    } catch (error) {
+      throw new InternalServerErrorException("Failed to retrieve print data");
+    }
+  }
+
+  async getShopkeeperInfo(shopkeeperId: string): Promise<any> {
+    try {
+      if (!Types.ObjectId.isValid(shopkeeperId)) {
+        throw new NotFoundException("Invalid shopkeeper ID");
+      }
+
+      const shopkeeper = await this.shopkeeperModel
+        .findById(shopkeeperId)
+        .lean();
+
+      if (!shopkeeper) {
+        throw new NotFoundException("Shopkeeper not found");
+      }
+
+      return {
+        shopName: shopkeeper.shopName,
+        name: shopkeeper.name,
+        address: shopkeeper.address,
+        phone: shopkeeper.whatsappNumber,
+        businessEmail: shopkeeper.businessEmail,
+        taxPercentage: shopkeeper.taxPercentage || 0,
+      };
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      throw new InternalServerErrorException("Failed to get shopkeeper info");
+    }
+  }
+
+  async generateThermalPrintData(orderId: string): Promise<any[]> {
+    try {
+      const order = await this.orderModel
+        .findById(orderId)
+        .populate("userId")
+        .populate("shopkeeperId")
+        .lean();
+
+      if (!order) {
+        throw new NotFoundException("Order not found");
+      }
+
+      const user = await this.userModel.findById(order.userId).lean();
+      const shopkeeper = await this.shopkeeperModel
+        .findById(order.shopkeeperId)
+        .lean();
+
+      if (!user || !shopkeeper) {
+        throw new NotFoundException("User or shopkeeper not found");
+      }
+
+      const printData: any[] = [];
+
+      // Store Header
+      printData.push({
+        type: 0,
+        content: shopkeeper.shopName || "Your Store",
+        bold: 1,
+        align: 1,
+        format: 2,
+      });
+
+      // Store Info
+      if (shopkeeper.address) {
+        printData.push({
+          type: 0,
+          content: shopkeeper.address,
+          bold: 0,
+          align: 1,
+          format: 4,
+        });
+      }
+
+      if (shopkeeper.whatsappNumber) {
+        printData.push({
+          type: 0,
+          content: `Tel: ${shopkeeper.whatsappNumber}`,
+          bold: 0,
+          align: 1,
+          format: 4,
+        });
+      }
+
+      // Separator line
+      printData.push({
+        type: 0,
+        content: "================================",
+        bold: 0,
+        align: 1,
+        format: 4,
+      });
+
+      // Receipt title
+      printData.push({
+        type: 0,
+        content: "ORDER RECEIPT",
+        bold: 1,
+        align: 1,
+        format: 3,
+      });
+
+      // Order details
+      printData.push({
+        type: 0,
+        content: `Order #: ${order._id.toString().slice(-6).toUpperCase()}`,
+        bold: 1,
+        align: 0,
+        format: 0,
+      });
+
+      printData.push({
+        type: 0,
+        content: `Date: ${new Date(order.createdAt).toLocaleDateString()}`,
+        bold: 0,
+        align: 0,
+        format: 0,
+      });
+
+      printData.push({
+        type: 0,
+        content: `Time: ${new Date(order.createdAt).toLocaleTimeString()}`,
+        bold: 0,
+        align: 0,
+        format: 0,
+      });
+
+      // Customer info
+      printData.push({
+        type: 0,
+        content: "--------------------------------",
+        bold: 0,
+        align: 0,
+        format: 4,
+      });
+
+      printData.push({
+        type: 0,
+        content: `Customer: ${user.name}`,
+        bold: 1,
+        align: 0,
+        format: 0,
+      });
+
+      printData.push({
+        type: 0,
+        content: `Email: ${user.email}`,
+        bold: 0,
+        align: 0,
+        format: 4,
+      });
+
+      if (user.whatsAppNumber) {
+        printData.push({
+          type: 0,
+          content: `Phone: ${user.whatsAppNumber}`,
+          bold: 0,
+          align: 0,
+          format: 4,
+        });
+      }
+
+      // Order type and delivery details
+      printData.push({
+        type: 0,
+        content: `Type: ${order.orderType.toUpperCase()}`,
+        bold: 1,
+        align: 0,
+        format: 0,
+      });
+
+      if (order.orderType === "delivery" && order.deliveryAddress) {
+        printData.push({
+          type: 0,
+          content: "Delivery Address:",
+          bold: 1,
+          align: 0,
+          format: 0,
+        });
+
+        printData.push({
+          type: 0,
+          content: order.deliveryAddress.street,
+          bold: 0,
+          align: 0,
+          format: 4,
+        });
+
+        printData.push({
+          type: 0,
+          content: `${order.deliveryAddress.city}, ${order.deliveryAddress.state}`,
+          bold: 0,
+          align: 0,
+          format: 4,
+        });
+
+        if (order.deliveryAddress.instructions) {
+          printData.push({
+            type: 0,
+            content: `Notes: ${order.deliveryAddress.instructions}`,
+            bold: 0,
+            align: 0,
+            format: 4,
+          });
+        }
+      }
+
+      if (order.orderType === "pickup" && order.pickupDate) {
+        printData.push({
+          type: 0,
+          content: `Pickup Date: ${new Date(order.pickupDate).toLocaleDateString()}`,
+          bold: 0,
+          align: 0,
+          format: 0,
+        });
+
+        if (order.pickupTime) {
+          printData.push({
+            type: 0,
+            content: `Pickup Time: ${order.pickupTime}`,
+            bold: 0,
+            align: 0,
+            format: 0,
+          });
+        }
+      }
+
+      // Items header
+      printData.push({
+        type: 0,
+        content: "================================",
+        bold: 0,
+        align: 0,
+        format: 4,
+      });
+
+      printData.push({
+        type: 0,
+        content: "ITEMS ORDERED",
+        bold: 1,
+        align: 1,
+        format: 3,
+      });
+
+      printData.push({
+        type: 0,
+        content: "--------------------------------",
+        bold: 0,
+        align: 0,
+        format: 4,
+      });
+
+      // Items list
+      order.items.forEach((item: any) => {
+        printData.push({
+          type: 0,
+          content: item.productName,
+          bold: 1,
+          align: 0,
+          format: 0,
+        });
+
+        if (item.subcategoryName) {
+          printData.push({
+            type: 0,
+            content: `Category: ${item.subcategoryName}`,
+            bold: 0,
+            align: 0,
+            format: 4,
+          });
+        }
+
+        if (item.variantTitle) {
+          printData.push({
+            type: 0,
+            content: `Variant: ${item.variantTitle}`,
+            bold: 0,
+            align: 0,
+            format: 4,
+          });
+        }
+
+        printData.push({
+          type: 0,
+          content: `Qty: ${item.quantity} x $${item.price.toFixed(2)} = $${(item.quantity * item.price).toFixed(2)}`,
+          bold: 0,
+          align: 0,
+          format: 0,
+        });
+
+        // Empty line between items
+        printData.push({
+          type: 0,
+          content: " ",
+          bold: 0,
+          align: 0,
+          format: 4,
+        });
+      });
+
+      // Total section
+      printData.push({
+        type: 0,
+        content: "================================",
+        bold: 0,
+        align: 0,
+        format: 4,
+      });
+
+      const subtotal = order.items.reduce(
+        (sum: number, item: any) => sum + item.quantity * item.price,
+        0
+      );
+      const tax = order.totalAmount - subtotal;
+
+      printData.push({
+        type: 0,
+        content: `Subtotal: $${subtotal.toFixed(2)}`,
+        bold: 0,
+        align: 2,
+        format: 0,
+      });
+
+      if (tax > 0) {
+        printData.push({
+          type: 0,
+          content: `Tax: $${tax.toFixed(2)}`,
+          bold: 0,
+          align: 2,
+          format: 0,
+        });
+      }
+
+      printData.push({
+        type: 0,
+        content: `TOTAL: $${order.totalAmount.toFixed(2)}`,
+        bold: 1,
+        align: 2,
+        format: 1,
+      });
+
+      // Status
+      printData.push({
+        type: 0,
+        content: "--------------------------------",
+        bold: 0,
+        align: 0,
+        format: 4,
+      });
+
+      printData.push({
+        type: 0,
+        content: `Status: ${order.status.toString().toUpperCase()}`,
+        bold: 1,
+        align: 1,
+        format: 0,
+      });
+
+      // QR Code for order tracking (optional)
+      printData.push({
+        type: 3,
+        value: `Order: ${order._id.toString().slice(-6).toUpperCase()}`,
+        size: 40,
+        align: 1,
+      });
+
+      // Footer
+      printData.push({
+        type: 0,
+        content: " ",
+        bold: 0,
+        align: 0,
+        format: 4,
+      });
+
+      printData.push({
+        type: 0,
+        content: "Thank you for your order!",
+        bold: 1,
+        align: 1,
+        format: 0,
+      });
+
+      printData.push({
+        type: 0,
+        content: "Visit us again!",
+        bold: 0,
+        align: 1,
+        format: 4,
+      });
+
+      return printData;
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      throw new InternalServerErrorException(
+        "Failed to generate thermal print data"
+      );
+    }
   }
 }

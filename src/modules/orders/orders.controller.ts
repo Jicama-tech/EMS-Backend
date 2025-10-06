@@ -117,4 +117,57 @@ export class OrdersController {
     const printData = await this.ordersService.generatePrintReceipt(orderId);
     return printData;
   }
+
+  @Post("create-print-data")
+  async createPrintData(@Body() body: { orderId: string; printData: any[] }) {
+    try {
+      const printId = await this.ordersService.createPrintData(
+        body.orderId,
+        body.printData
+      );
+      return { printId };
+    } catch (error) {
+      throw new InternalServerErrorException("Failed to create print data");
+    }
+  }
+
+  @Get("print-data/:printId")
+  async getPrintData(@Param("printId") printId: string) {
+    try {
+      const printData = await this.ordersService.getPrintData(printId);
+      if (!printData) {
+        throw new NotFoundException("Print data not found");
+      }
+      return printData;
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      throw new InternalServerErrorException("Failed to get print data");
+    }
+  }
+
+  @Get("thermal-print/:id")
+  async getThermalPrintData(@Param("id") orderId: string) {
+    try {
+      const printData =
+        await this.ordersService.generateThermalPrintData(orderId);
+      return printData;
+    } catch (error) {
+      throw new InternalServerErrorException(
+        "Failed to generate thermal print data"
+      );
+    }
+  }
+
+  @Get("shopkeeper-info/:shopkeeperId")
+  async getShopkeeperInfo(@Param("shopkeeperId") shopkeeperId: string) {
+    try {
+      const shopkeeperInfo =
+        await this.ordersService.getShopkeeperInfo(shopkeeperId);
+      return shopkeeperInfo;
+    } catch (error) {
+      throw new InternalServerErrorException("Failed to get shopkeeper info");
+    }
+  }
 }
