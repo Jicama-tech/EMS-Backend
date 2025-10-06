@@ -50,7 +50,8 @@ class OrderItemDto {
   productName: string;
 
   @IsNumber()
-  price: number;
+  @IsOptional()
+  price?: number;
 
   @IsNumber()
   quantity: number;
