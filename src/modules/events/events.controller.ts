@@ -85,12 +85,9 @@ export class EventsController {
     }
   }
 
-  @Get()
-  async list(
-    @Query("page", ParseIntPipe) page = 1,
-    @Query("limit", ParseIntPipe) limit = 10
-  ) {
-    return this.eventsService.list(page, limit);
+  @Get("get-events")
+  async list() {
+    return this.eventsService.list();
   }
 
   @Get("organizer/:organizerId")

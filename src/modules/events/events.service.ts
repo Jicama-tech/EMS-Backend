@@ -70,13 +70,13 @@ export class EventsService {
     }
   }
 
-  async list(page = 1, limit = 10) {
-    return this.eventModel
-      .find()
-      .skip((page - 1) * limit)
-      .limit(limit)
-      .populate("organizer")
-      .exec();
+  async list() {
+    const events = await this.eventModel.find().populate("organizer");
+    if (!events) {
+      throw new NotFoundException("No Events Found");
+    }
+
+    return { message: "Events Found", data: events };
   }
 
   async findById(id: string) {
