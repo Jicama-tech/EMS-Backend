@@ -11,7 +11,11 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   async function getAllowedDomains(): Promise<string[]> {
-    return ["https://eventsh.com", "https://thefoxsg.com"]; // sample static list, replace with DB call
+    return [
+      "https://eventsh.com",
+      "https://thefoxsg.com",
+      "http://localhost:8080",
+    ]; // sample static list, replace with DB call
   }
 
   app.enableCors({

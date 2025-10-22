@@ -23,6 +23,7 @@ import { UsersModule } from "../users/users.module";
       { name: Shopkeeper.name, schema: ShopkeeperSchema },
     ]),
     MailModule, // Add MailModule here so MailService can be injected
+    UsersModule,
   ],
   controllers: [OrdersController],
   providers: [OrdersService], // Remove MailService here, provided by MailModule

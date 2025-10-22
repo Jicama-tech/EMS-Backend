@@ -7,8 +7,8 @@ export class CreateUserDto {
   name: string;
 
   @IsEmail()
-  @IsNotEmpty()
-  email: string;
+  @IsOptional()
+  email?: string;
 
   @IsString()
   @IsOptional()
@@ -21,4 +21,16 @@ export class CreateUserDto {
   @IsString()
   @IsOptional()
   providerId?: string; // Unique ID from the social provider
+
+  @IsString()
+  @IsOptional()
+  whatsAppNumber?: string;
+
+  @IsString()
+  @IsOptional()
+  firstName?: string;
+
+  @IsString()
+  @IsOptional()
+  lastName?: string;
 }

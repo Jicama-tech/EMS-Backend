@@ -1,4 +1,3 @@
-// event.dto.ts
 import {
   IsString,
   IsDateString,
@@ -8,6 +7,8 @@ import {
   IsUrl,
   IsBoolean,
   IsEnum,
+  ValidateNested,
+  IsNumber,
 } from "class-validator";
 import { Type } from "class-transformer";
 
@@ -17,21 +18,10 @@ export enum Visibility {
   UNLISTED = "unlisted",
 }
 
-export class OrganizerDto {
-  @IsString()
-  name: string;
-
-  @IsString()
-  @IsOptional()
-  email?: string;
-
-  @IsString()
-  @IsOptional()
-  phone?: string;
-
-  @IsUrl()
-  @IsOptional()
-  website?: string;
+export enum EventStatus {
+  DRAFT = "draft",
+  PUBLISHED = "published",
+  CANCELLED = "cancelled",
 }
 
 export class SocialMediaDto {
@@ -46,6 +36,10 @@ export class SocialMediaDto {
   @IsUrl()
   @IsOptional()
   twitter?: string;
+
+  @IsUrl()
+  @IsOptional()
+  linkedin?: string;
 }
 
 export class FeaturesDto {
@@ -74,6 +68,85 @@ export class FeaturesDto {
   accessibility?: boolean;
 }
 
+export class TableTemplateDto {
+  @IsString()
+  id: string;
+
+  @IsString()
+  name: string;
+
+  @IsString()
+  type: "Straight" | "Corner" | "Round" | "Square";
+
+  @IsNumber()
+  width: number;
+
+  @IsNumber()
+  height: number;
+
+  @IsNumber()
+  price: number;
+
+  @IsNumber()
+  depositAmount: number;
+
+  @IsBoolean()
+  @IsOptional()
+  customDimensions?: boolean;
+}
+
+export class PositionedTableDto extends TableTemplateDto {
+  @IsString()
+  positionId: string;
+
+  @IsNumber()
+  x: number;
+
+  @IsNumber()
+  y: number;
+
+  @IsNumber()
+  rotation: number;
+
+  @IsBoolean()
+  isPlaced: boolean;
+}
+
+export class AddOnItemDto {
+  @IsString()
+  id: string;
+
+  @IsString()
+  name: string;
+
+  @IsNumber()
+  price: number;
+
+  @IsString()
+  @IsOptional()
+  description?: string;
+}
+
+export class VenueConfigDto {
+  @IsNumber()
+  width: number;
+
+  @IsNumber()
+  height: number;
+
+  @IsNumber()
+  scale: number;
+
+  @IsNumber()
+  gridSize: number;
+
+  @IsBoolean()
+  showGrid: boolean;
+
+  @IsBoolean()
+  hasMainStage: boolean;
+}
+
 export class CreateEventDto {
   @IsString()
   title: string;
@@ -82,36 +155,31 @@ export class CreateEventDto {
   @IsOptional()
   description?: string;
 
+  @IsString()
+  @IsOptional()
+  category?: string;
+
   @IsDateString()
-  startDate: string; // Use string ISO date, convert later
+  startDate: string;
+
+  @IsString()
+  @IsOptional()
+  time?: string;
 
   @IsDateString()
   @IsOptional()
   endDate?: string;
 
   @IsString()
-  organizerId: string; // Mongo ObjectId as string
+  @IsOptional()
+  endTime?: string;
+
+  @IsString()
+  organizerId: string;
 
   @IsString()
   @IsOptional()
   location?: string;
-
-  @IsArray()
-  @IsString({ each: true })
-  @IsOptional()
-  images?: string[];
-
-  @IsString()
-  @IsOptional()
-  category?: string;
-
-  @IsString()
-  @IsOptional()
-  time?: string;
-
-  @IsString()
-  @IsOptional()
-  endTime?: string;
 
   @IsString()
   @IsOptional()
@@ -121,9 +189,9 @@ export class CreateEventDto {
   @IsOptional()
   ticketPrice?: string;
 
-  @IsString()
+  @IsNumber()
   @IsOptional()
-  totalTickets?: string;
+  totalTickets?: number;
 
   @IsEnum(Visibility)
   @IsOptional()
@@ -138,8 +206,9 @@ export class CreateEventDto {
   @IsOptional()
   tags?: string[];
 
-  @IsObject()
+  @ValidateNested()
   @IsOptional()
+  @Type(() => FeaturesDto)
   features?: FeaturesDto;
 
   @IsString()
@@ -162,14 +231,17 @@ export class CreateEventDto {
   @IsOptional()
   termsAndConditions?: string;
 
-  @IsObject()
-  @Type(() => OrganizerDto)
+  @IsString()
   @IsOptional()
-  organizer?: OrganizerDto;
+  setupTime?: string;
 
-  @IsObject()
-  @Type(() => SocialMediaDto)
+  @IsString()
   @IsOptional()
+  breakdownTime?: string;
+
+  @ValidateNested()
+  @IsOptional()
+  @Type(() => SocialMediaDto)
   socialMedia?: SocialMediaDto;
 
   @IsString()
@@ -180,4 +252,32 @@ export class CreateEventDto {
   @IsString({ each: true })
   @IsOptional()
   gallery?: string[];
+
+  @ValidateNested({ each: true })
+  @IsOptional()
+  @Type(() => TableTemplateDto)
+  tableTemplates?: TableTemplateDto[];
+
+  @ValidateNested({ each: true })
+  @IsOptional()
+  @Type(() => PositionedTableDto)
+  venueTables?: PositionedTableDto[];
+
+  @ValidateNested({ each: true })
+  @IsOptional()
+  @Type(() => AddOnItemDto)
+  addOnItems?: AddOnItemDto[];
+
+  @ValidateNested()
+  @IsOptional()
+  @Type(() => VenueConfigDto)
+  venueConfig?: VenueConfigDto;
+
+  @IsEnum(EventStatus)
+  @IsOptional()
+  status?: EventStatus;
+
+  @IsBoolean()
+  @IsOptional()
+  featured?: boolean;
 }

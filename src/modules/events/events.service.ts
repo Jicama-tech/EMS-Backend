@@ -13,26 +13,19 @@ export class EventsService {
 
   async create(createEventDto: CreateEventDto): Promise<Event> {
     try {
-      console.log(createEventDto, "Creating event");
+      console.log("Creating event with data:", createEventDto);
 
       const startDate = new Date(createEventDto.startDate);
-
-      // If no endDate, set to startDate
       const endDate = createEventDto.endDate
         ? new Date(createEventDto.endDate)
         : new Date(createEventDto.startDate);
 
-      // Define endTime: if provided use it; else set to 12:00 AM (midnight) of endDate
       let endTime: Date;
       if (createEventDto.endTime) {
         endTime = new Date(createEventDto.endTime);
       } else {
-        // Set endTime to midnight (00:00) of endDate
         endTime = new Date(endDate);
-        endTime.setHours(24, 0, 0, 0); // 24:00 interpreted as midnight next day
-        // Alternatively, to keep it precisely 00:00 of next day, you can do:
-        // endTime.setHours(0, 0, 0, 0);
-        // endTime.setDate(endTime.getDate() + 1);
+        endTime.setHours(23, 59, 59, 999);
       }
 
       const event = new this.eventModel({
@@ -50,85 +43,130 @@ export class EventsService {
         totalTickets: createEventDto.totalTickets,
         visibility: createEventDto.visibility || "public",
         inviteLink: createEventDto.inviteLink,
-        tags: createEventDto.tags,
-        features: createEventDto.features,
+        tags: createEventDto.tags || [],
+        features: createEventDto.features || {
+          food: false,
+          parking: false,
+          wifi: false,
+          photography: false,
+          security: false,
+          accessibility: false,
+        },
         ageRestriction: createEventDto.ageRestriction,
         dresscode: createEventDto.dresscode,
         specialInstructions: createEventDto.specialInstructions,
-        image: createEventDto.image,
-        gallery: createEventDto.gallery,
-        organizerDetails: createEventDto.organizer,
-        socialMedia: createEventDto.socialMedia,
         refundPolicy: createEventDto.refundPolicy,
         termsAndConditions: createEventDto.termsAndConditions,
+        setupTime: createEventDto.setupTime,
+        breakdownTime: createEventDto.breakdownTime,
+        socialMedia: createEventDto.socialMedia || {
+          facebook: "",
+          instagram: "",
+          twitter: "",
+          linkedin: "",
+        },
+        image: createEventDto.image,
+        gallery: createEventDto.gallery || [],
+        tableTemplates: createEventDto.tableTemplates || [],
+        venueTables: createEventDto.venueTables || [],
+        addOnItems: createEventDto.addOnItems || [],
+        venueConfig: createEventDto.venueConfig || {
+          width: 800,
+          height: 500,
+          scale: 0.75,
+          gridSize: 20,
+          showGrid: true,
+          hasMainStage: true,
+        },
+        status: createEventDto.status || "draft",
+        featured: createEventDto.featured || false,
       });
 
-      return await event.save();
+      const savedEvent = await event.save();
+      console.log("Event created successfully:", savedEvent._id);
+      return savedEvent;
     } catch (error) {
-      console.log(error);
+      console.error("Error creating event:", error);
       throw error;
     }
   }
 
-  async list() {
-    const events = await this.eventModel.find().populate("organizer");
-    if (!events) {
-      throw new NotFoundException("No Events Found");
+  async findAll(): Promise<Event[]> {
+    try {
+      const events = await this.eventModel
+        .find()
+        .populate("organizer")
+        .sort({ createdAt: -1 })
+        .exec();
+      return events;
+    } catch (error) {
+      console.error("Error fetching events:", error);
+      throw error;
     }
-
-    return { message: "Events Found", data: events };
   }
 
-  async findById(id: string) {
-    const event = await this.eventModel
-      .findById(id)
-      .populate("organizer")
-      .exec();
-    if (!event) {
-      throw new NotFoundException(`Event with ID ${id} not found`);
+  async findById(id: string): Promise<Event> {
+    try {
+      const event = await this.eventModel
+        .findById(id)
+        .populate("organizer")
+        .exec();
+
+      if (!event) {
+        throw new NotFoundException(`Event with ID ${id} not found`);
+      }
+
+      return event;
+    } catch (error) {
+      console.error("Error finding event:", error);
+      throw error;
     }
-    return event;
+  }
+
+  async findByOrganizer(
+    organizerId: string
+  ): Promise<{ events: Event[]; total: number }> {
+    try {
+      const [events, total] = await Promise.all([
+        this.eventModel
+          .find({ organizer: organizerId })
+          .populate("organizer")
+          .sort({ createdAt: -1 })
+          .exec(),
+        this.eventModel.countDocuments({ organizer: organizerId }).exec(),
+      ]);
+
+      return { events, total };
+    } catch (error) {
+      console.error("Error fetching organizer events:", error);
+      throw error;
+    }
   }
 
   async update(id: string, updateEventDto: UpdateEventDto): Promise<Event> {
     try {
-      // Prepare update data
-      const updateData: any = { ...updateEventDto };
+      console.log("Updating event:", id, updateEventDto);
 
-      // Handle date updates if provided
+      // Handle date conversions
       if (updateEventDto.startDate) {
-        updateData.startDate = new Date(updateEventDto.startDate);
+        updateEventDto.startDate = new Date(updateEventDto.startDate) as any;
       }
-
       if (updateEventDto.endDate) {
-        updateData.endDate = new Date(updateEventDto.endDate);
+        updateEventDto.endDate = new Date(updateEventDto.endDate) as any;
       } else if (updateEventDto.startDate) {
-        // If no endDate provided but startDate is provided, set endDate to startDate
-        updateData.endDate = new Date(updateEventDto.startDate);
+        updateEventDto.endDate = new Date(updateEventDto.startDate) as any;
       }
 
-      // Handle endTime: if not provided, set to 12:00 AM (midnight) of endDate
-      if (updateEventDto.endTime) {
-        updateData.endTime = new Date(updateEventDto.endTime);
-      } else {
-        // Set endTime to midnight (00:00) of endDate (or startDate fallback)
-        const endDateForTime = updateData.endDate || updateData.startDate;
-        if (endDateForTime) {
-          const newEndTime = new Date(endDateForTime);
-          // Set hour 24 to represent midnight at end of day
-          newEndTime.setHours(24, 0, 0, 0);
-          updateData.endTime = newEndTime;
-        }
-      }
-
-      // Handle organizerId conversion if provided
+      // Handle organizer ID
       if (updateEventDto.organizerId) {
-        updateData.organizer = updateEventDto.organizerId;
-        delete updateData.organizerId;
+        updateEventDto.organizer = new Types.ObjectId(
+          updateEventDto.organizerId
+        );
+        delete updateEventDto.organizerId;
       }
 
       const updatedEvent = await this.eventModel
-        .findByIdAndUpdate(id, updateData, {
+        .findByIdAndUpdate(id, updateEventDto, {
           new: true,
           runValidators: true,
         })
@@ -139,41 +177,73 @@ export class EventsService {
         throw new NotFoundException(`Event with ID ${id} not found`);
       }
 
+      console.log("Event updated successfully:", updatedEvent._id);
       return updatedEvent;
     } catch (error) {
-      console.log(error);
+      console.error("Error updating event:", error);
       throw error;
     }
   }
 
-  async remove(id: string) {
-    const deletedEvent = await this.eventModel.findByIdAndDelete(id).exec();
-    if (!deletedEvent) {
-      throw new NotFoundException(`Event with ID ${id} not found`);
+  async remove(id: string): Promise<Event> {
+    try {
+      const deletedEvent = await this.eventModel
+        .findByIdAndDelete(id)
+        .populate("organizer")
+        .exec();
+
+      if (!deletedEvent) {
+        throw new NotFoundException(`Event with ID ${id} not found`);
+      }
+
+      console.log("Event deleted successfully:", deletedEvent._id);
+      return deletedEvent;
+    } catch (error) {
+      console.error("Error deleting event:", error);
+      throw error;
     }
-    return deletedEvent;
   }
 
-  async findEventsByOrganizer(organizerId: string, page = 1, limit = 10) {
+  async updateStatus(id: string, status: string): Promise<Event> {
     try {
+      const updatedEvent = await this.eventModel
+        .findByIdAndUpdate(id, { status }, { new: true })
+        .populate("organizer")
+        .exec();
+
+      if (!updatedEvent) {
+        throw new NotFoundException(`Event with ID ${id} not found`);
+      }
+
+      return updatedEvent;
+    } catch (error) {
+      console.error("Error updating event status:", error);
+      throw error;
+    }
+  }
+
+  async searchEvents(query: string): Promise<Event[]> {
+    try {
+      const searchRegex = new RegExp(query, "i");
+
       const events = await this.eventModel
-        .find({ organizer: organizerId })
-        .skip((page - 1) * limit)
-        .limit(limit)
+        .find({
+          $or: [
+            { title: { $regex: searchRegex } },
+            { description: { $regex: searchRegex } },
+            { category: { $regex: searchRegex } },
+            { location: { $regex: searchRegex } },
+            { tags: { $in: [searchRegex] } },
+          ],
+        })
+        .populate("organizer")
         .sort({ createdAt: -1 })
         .exec();
 
-      if (events.length === 0) {
-        throw new NotFoundException("No Events Found");
-      }
-
-      return { message: "Events Found", data: events };
+      return events;
     } catch (error) {
+      console.error("Error searching events:", error);
       throw error;
     }
-  }
-
-  async countEventsByOrganizer(organizerId: string) {
-    return this.eventModel.countDocuments({ organizer: organizerId }).exec();
   }
 }

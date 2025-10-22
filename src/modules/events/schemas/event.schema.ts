@@ -1,4 +1,3 @@
-// event.schema.ts
 import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
 import { Document, Types } from "mongoose";
 
@@ -10,43 +9,43 @@ export class Event {
   title: string;
 
   @Prop()
-  description: string;
+  description?: string;
 
   @Prop()
-  category: string;
+  category?: string;
 
   @Prop()
   startDate: Date;
 
   @Prop()
-  time: string;
+  time?: string;
 
   @Prop()
-  endDate: Date;
+  endDate?: Date;
 
   @Prop()
-  endTime: string;
+  endTime?: string;
 
   @Prop({ type: Types.ObjectId, ref: "Organizer", required: true })
   organizer: Types.ObjectId;
 
   @Prop()
-  location: string;
+  location?: string;
 
   @Prop()
-  address: string;
+  address?: string;
 
   @Prop()
-  ticketPrice: string;
+  ticketPrice?: string;
 
   @Prop()
-  totalTickets: number;
+  totalTickets?: number;
 
   @Prop({ enum: ["public", "private", "unlisted"], default: "public" })
   visibility: string;
 
   @Prop()
-  inviteLink: string;
+  inviteLink?: string;
 
   @Prop([String])
   tags: string[];
@@ -72,38 +71,90 @@ export class Event {
   };
 
   @Prop()
-  ageRestriction: string;
+  ageRestriction?: string;
 
   @Prop()
-  dresscode: string;
+  dresscode?: string;
 
   @Prop()
-  specialInstructions: string;
+  specialInstructions?: string;
 
   @Prop()
-  image: string;
+  refundPolicy?: string;
+
+  @Prop()
+  termsAndConditions?: string;
+
+  @Prop()
+  setupTime?: string;
+
+  @Prop()
+  breakdownTime?: string;
+
+  // Media fields
+  @Prop()
+  image?: string;
 
   @Prop([String])
-  gallery: string[];
+  gallery?: string[];
 
   @Prop({
     type: Object,
-    default: {},
+    default: {
+      facebook: "",
+      instagram: "",
+      twitter: "",
+      linkedin: "",
+    },
   })
-  socialMedia: {
+  socialMedia?: {
     facebook?: string;
     instagram?: string;
     twitter?: string;
+    linkedin?: string;
   };
 
-  @Prop()
-  refundPolicy: string;
+  // Exhibition/Venue fields
+  @Prop({ type: Array, default: [] })
+  tableTemplates: any[];
 
-  @Prop()
-  termsAndConditions: string;
+  @Prop({ type: Array, default: [] })
+  venueTables: any[];
+
+  @Prop({ type: Array, default: [] })
+  addOnItems: any[];
+
+  @Prop({
+    type: Object,
+    default: {
+      width: 800,
+      height: 500,
+      scale: 0.75,
+      gridSize: 20,
+      showGrid: true,
+      hasMainStage: true,
+    },
+  })
+  venueConfig: {
+    width: number;
+    height: number;
+    scale: number;
+    gridSize: number;
+    showGrid: boolean;
+    hasMainStage: boolean;
+  };
+
+  @Prop({ enum: ["draft", "published", "cancelled"], default: "draft" })
+  status: string;
+
+  @Prop({ default: false })
+  featured: boolean;
 
   @Prop()
   createdAt: Date;
+
+  @Prop()
+  updatedAt: Date;
 }
 
 export const EventSchema = SchemaFactory.createForClass(Event);

@@ -15,6 +15,18 @@ import { MailService } from "../roles/mail.service";
 import axios from "axios";
 import * as PDFKit from "pdfkit";
 import { v4 as uuidv4 } from "uuid";
+import { CreateUserDto } from "../users/dto/create-users.dto";
+import { UsersService } from "../users/users.service";
+
+function asObjectId(id: string | Types.ObjectId): Types.ObjectId | string {
+  // If already an ObjectId
+  if (id instanceof Types.ObjectId) return id;
+  // If valid string ObjectId
+  if (typeof id === "string" && Types.ObjectId.isValid(id))
+    return new Types.ObjectId(id);
+  // Else keep as string
+  return id;
+}
 
 @Injectable()
 export class OrdersService {
@@ -25,29 +37,55 @@ export class OrdersService {
     @InjectModel(User.name) private readonly userModel: Model<User>,
     @InjectModel(Shopkeeper.name)
     private readonly shopkeeperModel: Model<Shopkeeper>,
-    private readonly mailService: MailService
+    private readonly mailService: MailService,
+    private readonly usersService: UsersService
   ) {}
 
   async createOrder(dto: CreateOrderDto): Promise<Order> {
     try {
+      // Step 1. Find or create user by WhatsApp number
+      let user = await this.userModel
+        .findOne({ whatsAppNumber: dto.whatsAppNumber })
+        .exec();
+
+      if (!user) {
+        // Create new user if none exists
+        const createUserDto: CreateUserDto = {
+          name: dto.fullName || "Guest User",
+          email: null,
+          password: null,
+          provider: "whatsapp",
+          providerId: null,
+          whatsAppNumber: dto.whatsAppNumber,
+        };
+
+        user = await this.usersService.create(createUserDto);
+      }
+
+      // Step 2. Deduct inventory before creating order
       await this.updateProductInventory(dto.items, "deduct");
+
+      // Step 3. Create order associated with the user
       const order = new this.orderModel({
         ...dto,
+        userId: user._id.toString(),
         status: OrderStatus.Pending,
       });
+
       const savedOrder = await order.save();
 
-      // Get shopkeeper details for WhatsApp
-      const shopkeeper = await this.shopkeeperModel.findById(dto.shopkeeperId);
-      if (shopkeeper?.whatsappNumber) {
-        await this.sendWhatsAppToShopkeeper(
-          shopkeeper.whatsappNumber,
-          shopkeeper.name || shopkeeper.shopName,
-          savedOrder.orderId,
-          savedOrder.totalAmount,
-          dto.items.length
-        );
-      }
+      // Step 4. Send WhatsApp notification to shopkeeper
+      // const shopkeeper = await this.shopkeeperModel.findById(dto.shopkeeperId);
+
+      // if (shopkeeper?.whatsAppNumber) {
+      //   await this.sendWhatsAppToShopkeeper(
+      //     shopkeeper.whatsAppNumber,
+      //     shopkeeper.name || shopkeeper.shopName,
+      //     savedOrder.orderId,
+      //     savedOrder.totalAmount,
+      //     dto.items.length
+      //   );
+      // }
 
       return savedOrder;
     } catch (error) {

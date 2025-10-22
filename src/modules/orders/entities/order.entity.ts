@@ -22,7 +22,7 @@ export class Order extends Document {
   orderId: string;
 
   @Prop({ required: true, type: Types.ObjectId, ref: "User" })
-  userId: Types.ObjectId;
+  userId: string;
 
   @Prop({ required: true, type: Types.ObjectId, ref: "Shopkeeper" })
   shopkeeperId: Types.ObjectId;

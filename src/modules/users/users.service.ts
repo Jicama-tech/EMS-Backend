@@ -32,6 +32,9 @@ export class UsersService {
         password: data.password,
         provider: data.provider,
         providerId: data.providerId,
+        whatsAppNumber: data.whatsAppNumber,
+        firstName: data.firstName,
+        lastName: data.lastName,
       });
       return await created.save();
     } catch (error) {
@@ -148,11 +151,35 @@ export class UsersService {
    * 2. If exists, return data & token
    * 3. Else, call Google backend flow to create user (simulate)
    */
-  async verifyEmailForCart(email: string) {
+  async verifyEmailForCart(email: string, whatsAppNumber: string) {
     try {
-      let user = await this.findByEmail(email);
+      // Step 1: Find user by WhatsApp Number
+      let user = await this.userModel.findOne({
+        whatsAppNumber: whatsAppNumber,
+      });
+
+      console.log(whatsAppNumber, "whatsAppNumber");
+      console.log(user, "user");
+
+      let isNewUser = false;
 
       if (user) {
+        // Step 2: Update email if needed
+        let shouldSave = false;
+        if (user.email) {
+          if (user.email !== email) {
+            user.email = email;
+            shouldSave = true;
+          } else if (user.email === null) {
+            user.email = email;
+            shouldSave = true;
+          }
+        } else {
+          user.email = email;
+          shouldSave = true;
+        }
+        if (shouldSave) await user.save();
+
         const payload = {
           name: user.name,
           email: user.email,
@@ -166,7 +193,7 @@ export class UsersService {
 
         return {
           success: true,
-          message: "User found",
+          message: "User found and email ensured/updated",
           user: {
             id: user._id,
             name: user.name,
@@ -177,58 +204,46 @@ export class UsersService {
           token,
           isNewUser: false,
         };
-      }
-
-      // Simulated Google backend flow (no real API call here)
-      // You can integrate real Google token verification if email+token provided
-      const googleUser = null; // or call googleService if you get Google ID token differently
-
-      if (googleUser) {
-        const createUserDto: CreateUserDto = {
-          name: googleUser.name,
-          email: googleUser.email,
-          password: null,
-          provider: "google",
-          providerId: googleUser.sub,
-        };
-
-        user = await this.create(createUserDto);
       } else {
+        // No user found, create new
+        // You may set fullName based on your own logic, here defaulting to prefix of email
+        const fullName = email.split("@")[0];
         const createUserDto: CreateUserDto = {
-          name: email.split("@")[0],
+          name: fullName,
           email,
           password: null,
-          provider: "google",
+          provider: "google", // Or "email" if you prefer
           providerId: null,
+          whatsAppNumber: whatsAppNumber || null,
         };
 
         user = await this.create(createUserDto);
-      }
 
-      const payload = {
-        name: user.name,
-        email: user.email,
-        sub: user._id,
-        roles: user.roles,
-      };
-      const token = this.jwtService.sign(payload, {
-        secret: process.env.JWT_ACCESS_SECRET,
-        expiresIn: "24h",
-      });
-
-      return {
-        success: true,
-        message: "User created successfully",
-        user: {
-          id: user._id,
+        const payload = {
           name: user.name,
           email: user.email,
-          whatsAppNumber: user.whatsAppNumber || null,
-          isWhatsAppVerified: !!user.whatsAppNumber,
-        },
-        token,
-        isNewUser: true,
-      };
+          sub: user._id,
+          roles: user.roles,
+        };
+        const token = this.jwtService.sign(payload, {
+          secret: process.env.JWT_ACCESS_SECRET,
+          expiresIn: "24h",
+        });
+
+        return {
+          success: true,
+          message: "User created successfully",
+          user: {
+            id: user._id,
+            name: user.name,
+            email: user.email,
+            whatsAppNumber: user.whatsAppNumber || null,
+            isWhatsAppVerified: !!user.whatsAppNumber,
+          },
+          token,
+          isNewUser: true,
+        };
+      }
     } catch (error) {
       console.error("Email verification error:", error);
       throw new InternalServerErrorException(
@@ -240,9 +255,9 @@ export class UsersService {
   /**
    * WHATSAPP OTP RELATED METHODS (send, verify, update user)
    */
-  async sendWhatsAppOtp(userId: string, whatsAppNumber: string) {
+  async sendWhatsAppOtp(whatsAppNumber: string) {
     try {
-      const user = await this.findById(userId);
+      const user = await this.userModel.findOne({ whatsAppNumber });
       if (!user) throw new NotFoundException("User not found");
 
       // if (user.whatsAppNumber) {
@@ -268,31 +283,71 @@ export class UsersService {
     }
   }
 
-  async verifyWhatsAppOtp(userId: string, whatsAppNumber: string, otp: string) {
+  async verifyWhatsAppOtp(
+    fullName: string,
+    whatsAppNumber: string,
+    otp: string
+  ) {
     try {
-      const user = await this.findById(userId);
-      if (!user) throw new NotFoundException("User not found");
+      let user = await this.userModel.findOne({ whatsAppNumber });
 
-      if (user.whatsAppNumber) {
+      if (!user) {
+        // Create new user with fullName and WhatsApp Number
+        const createUserDto: CreateUserDto = {
+          name: fullName,
+          email: null,
+          password: null,
+          provider: null,
+          providerId: null,
+          whatsAppNumber,
+        };
+        user = await this.create(createUserDto);
+      }
+
+      // If user already verified with same number
+      if (user.whatsAppNumber === whatsAppNumber) {
         return {
-          success: false,
+          success: true,
           message: "WhatsApp number already verified",
-          alreadyVerified: true,
+          user: {
+            id: user._id,
+            name: user.name,
+            whatsAppNumber: user.whatsAppNumber,
+            isWhatsAppVerified: true,
+          },
         };
       }
 
+      // Verify the sent OTP
       await this.otpService.verifyWhatsAppOtp(whatsAppNumber, "user", otp);
 
-      const updatedUser = await this.updateUser(userId, { whatsAppNumber });
+      // Update user with WhatsApp Number and fullName if changed
+      if (user.name !== fullName || user.whatsAppNumber !== whatsAppNumber) {
+        const updateData: UpdateUserDto = {
+          name: fullName,
+          whatsAppNumber,
+        };
+        const userId = user._id.toString();
+        const updatedUser = await this.updateUser(userId, updateData);
+        return {
+          success: true,
+          message: "WhatsApp verified and user updated",
+          user: {
+            id: updatedUser.data._id,
+            name: updatedUser.data.name,
+            whatsAppNumber: updatedUser.data.whatsAppNumber,
+            isWhatsAppVerified: true,
+          },
+        };
+      }
 
       return {
         success: true,
-        message: "WhatsApp verified and saved",
+        message: "WhatsApp verified",
         user: {
-          id: updatedUser.data._id,
-          name: updatedUser.data.name,
-          email: updatedUser.data.email,
-          whatsAppNumber: updatedUser.data.whatsAppNumber,
+          id: user._id,
+          name: user.name,
+          whatsAppNumber: user.whatsAppNumber,
           isWhatsAppVerified: true,
         },
       };

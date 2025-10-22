@@ -24,6 +24,7 @@ export class TicketsService {
     @InjectModel(Event.name) private eventModel: Model<Event>,
     @InjectModel(Organizer.name) private organizerModel: Model<Organizer>,
     private mailService: MailService
+    // private whatsAppService: WhatsAppService
   ) {
     // Ensure QR directory exists
     const qrDir = path.join(process.cwd(), "uploads", "generatedQRs");

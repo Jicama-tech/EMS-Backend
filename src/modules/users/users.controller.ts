@@ -94,12 +94,17 @@ export class UsersController {
    * NEW: Email verification for cart
    */
   @Post("verify-email-for-cart")
-  async verifyEmailForCart(@Body() body: { email: string }) {
+  async verifyEmailForCart(
+    @Body() body: { email: string; whatsAppNumber: string }
+  ) {
     try {
-      if (!body.email) {
-        throw new BadRequestException("Email is required");
+      if (!body.email || !body.whatsAppNumber) {
+        throw new BadRequestException("Please provide everything");
       }
-      return await this.usersService.verifyEmailForCart(body.email);
+      return await this.usersService.verifyEmailForCart(
+        body.email,
+        body.whatsAppNumber
+      );
     } catch (error) {
       console.error("Email verification error:", error);
       throw error;
@@ -110,17 +115,12 @@ export class UsersController {
    * NEW: Send WhatsApp OTP
    */
   @Post("send-whatsapp-otp")
-  async sendWhatsAppOtp(
-    @Body() body: { userId: string; whatsAppNumber: string }
-  ) {
+  async sendWhatsAppOtp(@Body() body: { whatsAppNumber: string }) {
     try {
-      if (!body.userId || !body.whatsAppNumber) {
+      if (!body.whatsAppNumber) {
         throw new BadRequestException("userId and whatsAppNumber are required");
       }
-      return await this.usersService.sendWhatsAppOtp(
-        body.userId,
-        body.whatsAppNumber
-      );
+      return await this.usersService.sendWhatsAppOtp(body.whatsAppNumber);
     } catch (error) {
       console.error("WhatsApp OTP send error:", error);
       throw error;
@@ -132,16 +132,22 @@ export class UsersController {
    */
   @Post("verify-whatsapp-otp")
   async verifyWhatsAppOtp(
-    @Body() body: { userId: string; whatsAppNumber: string; otp: string }
+    @Body()
+    body: {
+      // userId: string;
+      whatsAppNumber: string;
+      otp: string;
+      fullName: string;
+    }
   ) {
     try {
-      if (!body.userId || !body.whatsAppNumber || !body.otp) {
+      if (!body.whatsAppNumber || !body.otp) {
         throw new BadRequestException(
           "userId, whatsAppNumber, and otp are required"
         );
       }
       return await this.usersService.verifyWhatsAppOtp(
-        body.userId,
+        body.fullName,
         body.whatsAppNumber,
         body.otp
       );

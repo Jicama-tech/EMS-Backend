@@ -73,8 +73,9 @@ export class CreateOrderDto {
   @IsString()
   orderId: string;
 
+  @IsOptional()
   @IsMongoId()
-  userId: string;
+  userId?: string; // now optional, will be filled automatically when found or created
 
   @IsMongoId()
   shopkeeperId: string;
@@ -102,8 +103,23 @@ export class CreateOrderDto {
   @IsString()
   pickupTime?: string;
 
-  // Status is optional on create, defaulted server-side
   @IsOptional()
   @IsEnum(OrderStatus)
   status?: OrderStatus;
+
+  // new field for WhatsApp-based identity
+  @IsString()
+  whatsAppNumber: string;
+
+  @IsOptional()
+  @IsString()
+  fullName?: string;
+
+  @IsOptional()
+  @IsString()
+  firstName?: string;
+
+  @IsOptional()
+  @IsString()
+  lastName?: string;
 }
