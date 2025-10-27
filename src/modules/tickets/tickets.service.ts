@@ -84,6 +84,9 @@ export class TicketsService {
         eventId: createTicketDto.eventId,
         issuedAt: new Date().toISOString(),
       };
+
+      console.log("QR Payload:", qrPayload);
+
       const qrCodeBase64 = await QRCode.toDataURL(JSON.stringify(qrPayload), {
         width: 200,
         margin: 2,
