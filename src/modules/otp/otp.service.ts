@@ -404,8 +404,11 @@ export class OtpService implements OnModuleInit {
     filePath: string,
     caption?: string
   ) {
+    console.log("called");
     if (!this.sock) throw new Error("WhatsApp not connected");
     const jid = this.toJid(whatsappNumber);
+
+    console.log(jid, "jid");
 
     // Read the file
     const fileBuffer = await fs.promises.readFile(filePath);
