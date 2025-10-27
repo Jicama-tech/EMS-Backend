@@ -128,6 +128,7 @@ export class TicketsService {
 
       // 5. Delivery - WhatsApp or Email fallback (prefer WhatsApp)
       if (savedTicket.customerWhatsapp) {
+        console.log("called");
         try {
           await this.sendTicketViaWhatsApp(
             savedTicket,
@@ -135,9 +136,10 @@ export class TicketsService {
             savedTicket.customerWhatsapp
           );
         } catch (error) {
-          if (ticketEmail) {
-            await this.sendTicketViaEmail(savedTicket, qrCodeBase64);
-          }
+          throw error;
+          // if (ticketEmail) {
+          //   await this.sendTicketViaEmail(savedTicket, qrCodeBase64);
+          // }
         }
       } else if (ticketEmail) {
         await this.sendTicketViaEmail(savedTicket, qrCodeBase64);
@@ -237,6 +239,7 @@ export class TicketsService {
     whatsappNumber: string
   ): Promise<void> {
     try {
+      console.log("Called 1");
       const pdfBuffer = await this.generateTicketPDF(ticket, qrBase64);
       const pdfDir = path.join(process.cwd(), "uploads", "tickets");
       if (!fs.existsSync(pdfDir)) fs.mkdirSync(pdfDir, { recursive: true });
