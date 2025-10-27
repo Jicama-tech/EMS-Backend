@@ -6,6 +6,7 @@ import makeWASocket, {
   WASocket,
 } from "baileys";
 import * as qrcode from "qrcode";
+import * as fs from "fs";
 
 @Injectable()
 export class WhatsAppService implements OnModuleInit {
@@ -112,6 +113,25 @@ export class WhatsAppService implements OnModuleInit {
     const jid = this.toJid(whatsappNumber);
     console.log(jid);
     await this.sock.sendMessage(jid, { text });
+  }
+
+  async sendMediaMessage(
+    whatsappNumber: string,
+    filePath: string,
+    caption?: string
+  ) {
+    if (!this.sock) throw new Error("WhatsApp not connected");
+    const jid = this.toJid(whatsappNumber);
+
+    // Read the file
+    const fileBuffer = await fs.promises.readFile(filePath);
+
+    await this.sock.sendMessage(jid, {
+      document: fileBuffer,
+      mimetype: "application/pdf",
+      fileName: filePath.split("/").pop() || "ticket.pdf",
+      caption: caption || "",
+    });
   }
 
   isReady() {

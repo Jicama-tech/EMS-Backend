@@ -1,4 +1,4 @@
-import { Module } from "@nestjs/common";
+import { forwardRef, Module } from "@nestjs/common";
 import { MongooseModule } from "@nestjs/mongoose";
 import { TicketsService } from "./tickets.service";
 import { TicketsController } from "./tickets.controller";
@@ -9,7 +9,10 @@ import {
   OrganizerSchema,
 } from "../organizers/schemas/organizer.schema";
 import { MailModule } from "../roles/mail.module";
-// import { WhatsAppService } from "../otp/whatsapp.service";
+import { WhatsAppService } from "../otp/whatsapp.service";
+import { OtpModule } from "../otp/otp.module";
+import { OtpService } from "../otp/otp.service";
+import { UsersModule } from "../users/users.module";
 
 @Module({
   imports: [
@@ -19,6 +22,8 @@ import { MailModule } from "../roles/mail.module";
       { name: Organizer.name, schema: OrganizerSchema },
     ]),
     MailModule,
+    UsersModule,
+    forwardRef(() => OtpModule),
   ],
   controllers: [TicketsController],
   providers: [TicketsService],

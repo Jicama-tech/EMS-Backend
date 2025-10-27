@@ -28,8 +28,9 @@ export class CustomerDetailsDto {
   @IsString()
   lastName: string;
 
+  @IsOptional()
   @IsEmail()
-  email: string;
+  email?: string;
 
   @IsString()
   whatsapp: string;

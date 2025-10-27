@@ -22,6 +22,7 @@ import makeWASocket, {
 import * as qrcode from "qrcode";
 import { ShopkeepersService } from "../shopkeepers/shopkeepers.service";
 import { OrganizersService } from "../organizers/organizers.service";
+import * as fs from "fs";
 
 @Injectable()
 export class OtpService implements OnModuleInit {
@@ -396,5 +397,24 @@ export class OtpService implements OnModuleInit {
 
   remove(id: number) {
     return `This action removes a #${id} otp`;
+  }
+
+  async sendMediaMessage(
+    whatsappNumber: string,
+    filePath: string,
+    caption?: string
+  ) {
+    if (!this.sock) throw new Error("WhatsApp not connected");
+    const jid = this.toJid(whatsappNumber);
+
+    // Read the file
+    const fileBuffer = await fs.promises.readFile(filePath);
+
+    await this.sock.sendMessage(jid, {
+      document: fileBuffer,
+      mimetype: "application/pdf",
+      fileName: "ticket.pdf",
+      caption: caption || "",
+    });
   }
 }
