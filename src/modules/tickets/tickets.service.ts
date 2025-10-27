@@ -136,10 +136,10 @@ export class TicketsService {
             savedTicket.customerWhatsapp
           );
         } catch (error) {
-          throw error;
-          // if (ticketEmail) {
-          //   await this.sendTicketViaEmail(savedTicket, qrCodeBase64);
-          // }
+          // throw error;
+          if (ticketEmail) {
+            await this.sendTicketViaEmail(savedTicket, qrCodeBase64);
+          }
         }
       } else if (ticketEmail) {
         await this.sendTicketViaEmail(savedTicket, qrCodeBase64);
