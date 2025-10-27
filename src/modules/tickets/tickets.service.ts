@@ -63,6 +63,9 @@ export class TicketsService {
       const ticketEmail =
         user.email || createTicketDto.customerDetails.email || null;
 
+      const whatsAppNumber =
+        user.whatsAppNumber || createTicketDto.customerDetails.whatsapp || null;
+
       // 2. Ticket details setup
       const customerName = `${createTicketDto.customerDetails.firstName} ${createTicketDto.customerDetails.lastName}`;
       const ticketDetails = createTicketDto.tickets.map((t) => ({
@@ -104,7 +107,7 @@ export class TicketsService {
         eventVenue: createTicketDto.eventInfo.venue,
         customerName,
         customerEmail: ticketEmail,
-        customerWhatsapp: createTicketDto.customerDetails.whatsapp,
+        customerWhatsapp: whatsAppNumber,
         customerEmergencyContact:
           createTicketDto.customerDetails.emergencyContact,
         ticketDetails,
@@ -127,13 +130,14 @@ export class TicketsService {
       await this.updateEventTicketCount(createTicketDto.eventId, totalQuantity);
 
       // 5. Delivery - WhatsApp or Email fallback (prefer WhatsApp)
-      if (savedTicket.customerWhatsapp) {
+      if (whatsAppNumber) {
+        console.log(whatsAppNumber);
         console.log("called");
         try {
           await this.sendTicketViaWhatsApp(
             savedTicket,
             qrCodeBase64,
-            savedTicket.customerWhatsapp
+            whatsAppNumber
           );
         } catch (error) {
           // throw error;
