@@ -7,7 +7,7 @@ export type UserDocument = User & Document;
 @Schema({ timestamps: true })
 export class User {
   @Prop({ unique: true })
-  email: string;
+  email?: string;
 
   // Password is now optional since it won't be used for OAuth users
   @Prop({ required: false })

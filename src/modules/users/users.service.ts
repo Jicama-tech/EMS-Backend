@@ -36,6 +36,7 @@ export class UsersService {
         firstName: data.firstName,
         lastName: data.lastName,
       });
+      console.log(created, "created");
       return await created.save();
     } catch (error) {
       console.error(`Failed to create user: ${error.message}`);
