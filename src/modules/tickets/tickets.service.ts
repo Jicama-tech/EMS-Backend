@@ -132,8 +132,8 @@ export class TicketsService {
       // 5. Delivery - WhatsApp or Email fallback (prefer WhatsApp)
       if (whatsAppNumber) {
         console.log(whatsAppNumber);
-        console.log("called");
         try {
+          console.log("called");
           await this.sendTicketViaWhatsApp(
             savedTicket,
             qrCodeBase64,
@@ -141,6 +141,7 @@ export class TicketsService {
           );
         } catch (error) {
           // throw error;
+          console.log(error);
           if (ticketEmail) {
             await this.sendTicketViaEmail(savedTicket, qrCodeBase64);
           }
@@ -230,7 +231,7 @@ export class TicketsService {
     const uint8arrayBuffer = await page.pdf({
       format: "A4",
       printBackground: true,
-      margin: { top: "0mm", bottom: "0mm", left: "0mm", right: "0mm" },
+      margin: { top: "10mm", bottom: "0mm", left: "0mm", right: "0mm" },
     });
     await browser.close();
     const buffer = Buffer.from(uint8arrayBuffer);
