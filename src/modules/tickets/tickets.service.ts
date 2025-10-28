@@ -195,12 +195,12 @@ export class TicketsService {
         <div class="details">
           <div class="detailsTitle">Ticket Details</div>
           <div class="info">
-            <p><span class="emoji">🎫</span><span class="bold">Ticket ID:</span> ${ticket.ticketId}</p>
-            <p><span class="emoji">👤</span><span class="bold">Attendee:</span> ${ticket.customerName}</p>
-            <p><span class="emoji">📅</span><span class="bold">Date:</span> ${eventDate}</p>
-            <p><span class="emoji">🕒</span><span class="bold">Time:</span> ${ticket.eventTime || "N/A"}</p>
-            <p><span class="emoji">📍</span><span class="bold">Venue:</span> ${ticket.eventVenue || "N/A"}</p>
-            <p><span class="emoji">💰</span><span class="bold">Total:</span> $${ticket.totalAmount?.toFixed(2) || "0.00"}</p>
+            <p><span class="emoji"></span><span class="bold">Ticket ID:</span> ${ticket.ticketId}</p>
+            <p><span class="emoji"></span><span class="bold">Attendee:</span> ${ticket.customerName}</p>
+            <p><span class="emoji"></span><span class="bold">Date:</span> ${eventDate}</p>
+            <p><span class="emoji"></span><span class="bold">Time:</span> ${ticket.eventTime || "N/A"}</p>
+            <p><span class="emoji"></span><span class="bold">Venue:</span> ${ticket.eventVenue || "N/A"}</p>
+            <p><span class="emoji"></span><span class="bold">Total:</span> $${ticket.totalAmount?.toFixed(2) || "0.00"}</p>
           </div>
           <div class="qr-section">
             <div style="font-size:16px; margin-bottom:5px;">Scan at Event Entrance</div>
