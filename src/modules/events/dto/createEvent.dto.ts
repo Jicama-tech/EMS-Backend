@@ -9,6 +9,8 @@ import {
   IsEnum,
   ValidateNested,
   IsNumber,
+  Min,
+  Max,
 } from "class-validator";
 import { Type } from "class-transformer";
 
@@ -68,6 +70,7 @@ export class FeaturesDto {
   accessibility?: boolean;
 }
 
+// UPDATED: TableTemplateDto with row-based pricing
 export class TableTemplateDto {
   @IsString()
   id: string;
@@ -84,17 +87,42 @@ export class TableTemplateDto {
   @IsNumber()
   height: number;
 
+  // NEW: Row number for pricing
   @IsNumber()
-  price: number;
+  @Min(1)
+  rowNumber: number;
 
+  // NEW: Table Price (full rental price)
   @IsNumber()
-  depositAmount: number;
+  @Min(0)
+  tablePrice: number;
+
+  // NEW: Booking Price (partial payment, must be <= tablePrice)
+  @IsNumber()
+  @Min(0)
+  bookingPrice: number;
+
+  // NEW: Deposit Price (security deposit, can be > tablePrice)
+  @IsNumber()
+  @Min(0)
+  depositPrice: number;
+
+  // NEW: Booking status
+  @IsBoolean()
+  @IsOptional()
+  isBooked?: boolean;
+
+  // NEW: Reference to shopkeeper/stall booking
+  @IsString()
+  @IsOptional()
+  bookedBy?: string;
 
   @IsBoolean()
   @IsOptional()
   customDimensions?: boolean;
 }
 
+// UPDATED: PositionedTableDto with row-based pricing
 export class PositionedTableDto extends TableTemplateDto {
   @IsString()
   positionId: string;
@@ -127,6 +155,7 @@ export class AddOnItemDto {
   description?: string;
 }
 
+// UPDATED: VenueConfigDto with totalRows
 export class VenueConfigDto {
   @IsNumber()
   width: number;
@@ -145,6 +174,12 @@ export class VenueConfigDto {
 
   @IsBoolean()
   hasMainStage: boolean;
+
+  // NEW: Total number of rows in venue
+  @IsNumber()
+  @Min(1)
+  @IsOptional()
+  totalRows?: number;
 }
 
 export class CreateEventDto {

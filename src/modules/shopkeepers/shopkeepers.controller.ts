@@ -172,4 +172,15 @@ export class ShopkeepersController {
 
     return this.shopkeepersService.updateProfile(id, body, paymentQrPublicUrl);
   }
+
+  @Get("profile/:whatsAppNumber")
+  async getProfileByWhatsAppNumber(
+    @Param("whatsAppNumber") whatsAppNumber: string
+  ) {
+    try {
+      return await this.shopkeepersService.whatsAppNumberExists(whatsAppNumber);
+    } catch (error) {
+      throw error;
+    }
+  }
 }

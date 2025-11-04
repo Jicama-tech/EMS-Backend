@@ -146,6 +146,7 @@ export class OtpService implements OnModuleInit {
   }
 
   async sendWhatsAppMessage(whatsappNumber: string, text: string) {
+    console.log("Called");
     if (!this.sock) throw new Error("WhatsApp not connected");
     const jid = this.toJid(whatsappNumber);
     await this.sock.sendMessage(jid, { text });

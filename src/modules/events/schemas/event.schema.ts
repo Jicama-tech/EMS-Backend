@@ -114,15 +114,50 @@ export class Event {
     linkedin?: string;
   };
 
-  // Exhibition/Venue fields
+  // Exhibition/Venue fields with ROW-BASED PRICING
   @Prop({ type: Array, default: [] })
-  tableTemplates: any[];
+  tableTemplates: {
+    id: string;
+    name: string;
+    type: "Straight" | "Corner" | "Round" | "Square";
+    width: number;
+    height: number;
+    rowNumber: number; // NEW: Row number for pricing
+    tablePrice: number; // NEW: Full table rental price
+    bookingPrice: number; // NEW: Partial payment (must be <= tablePrice)
+    depositPrice: number; // NEW: Security deposit (can be > tablePrice)
+    isBooked: boolean; // NEW: Booking status
+    bookedBy?: string; // NEW: Reference to shopkeeper/stall booking
+    customDimensions?: boolean;
+  }[];
 
   @Prop({ type: Array, default: [] })
-  venueTables: any[];
+  venueTables: {
+    positionId: string;
+    id: string;
+    name: string;
+    type: "Straight" | "Corner" | "Round" | "Square";
+    width: number;
+    height: number;
+    x: number;
+    y: number;
+    rotation: number;
+    isPlaced: boolean;
+    rowNumber: number; // NEW: Row number for pricing
+    tablePrice: number; // NEW: Full table rental price
+    bookingPrice: number; // NEW: Partial payment (must be <= tablePrice)
+    depositPrice: number; // NEW: Security deposit (can be > tablePrice)
+    isBooked: boolean; // NEW: Booking status
+    bookedBy?: string; // NEW: Reference to shopkeeper/stall booking
+  }[];
 
   @Prop({ type: Array, default: [] })
-  addOnItems: any[];
+  addOnItems: {
+    id: string;
+    name: string;
+    price: number;
+    description: string;
+  }[];
 
   @Prop({
     type: Object,
@@ -133,6 +168,7 @@ export class Event {
       gridSize: 20,
       showGrid: true,
       hasMainStage: true,
+      totalRows: 3, // NEW: Total number of rows in venue
     },
   })
   venueConfig: {
@@ -142,6 +178,7 @@ export class Event {
     gridSize: number;
     showGrid: boolean;
     hasMainStage: boolean;
+    totalRows: number; // NEW: Total number of rows
   };
 
   @Prop({ enum: ["draft", "published", "cancelled"], default: "draft" })

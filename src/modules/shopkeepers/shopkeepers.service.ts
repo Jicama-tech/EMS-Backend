@@ -491,4 +491,22 @@ export class ShopkeepersService {
       throw error;
     }
   }
+
+  async whatsAppNumberExists(whatsAppNumber: string) {
+    try {
+      const shopkeeper = await this.shopModel.findOne({
+        whatsappNumber: whatsAppNumber,
+      });
+      console.log(shopkeeper);
+      if (!shopkeeper) {
+        throw new NotFoundException("Shopkeeper Not Found");
+      }
+
+      return { message: "shopkeeper found", data: shopkeeper };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async registerForStall() {}
 }

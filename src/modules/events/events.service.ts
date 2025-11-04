@@ -158,12 +158,12 @@ export class EventsService {
       }
 
       // Handle organizer ID
-      if (updateEventDto.organizerId) {
-        updateEventDto.organizer = new Types.ObjectId(
-          updateEventDto.organizerId
-        );
-        delete updateEventDto.organizerId;
-      }
+      // if (updateEventDto.organizerId) {
+      //   updateEventDto.organizer = new Types.ObjectId(
+      //     updateEventDto.organizerId
+      //   );
+      //   delete updateEventDto.organizerId;
+      // }
 
       const updatedEvent = await this.eventModel
         .findByIdAndUpdate(id, updateEventDto, {
