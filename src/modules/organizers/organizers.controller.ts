@@ -158,4 +158,25 @@ export class OrganizersController {
       throw error;
     }
   }
+
+  @Patch("add-subscription-plan-for-organizer/:id/plan/:planSelected")
+  async addSubscriptionPlan(
+    @Param("id") id: string,
+    @Param("planSelected") planSelected: string
+  ) {
+    try {
+      return await this.organizersService.addSubscriptionPlan(id, planSelected);
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @Patch("cancel-subscription-for-organizer/:id")
+  async cancelSubscription(@Param("id") id: string) {
+    try {
+      return await this.organizersService.cancelSubscription(id);
+    } catch (error) {
+      throw error;
+    }
+  }
 }

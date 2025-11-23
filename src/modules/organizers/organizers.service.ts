@@ -20,6 +20,8 @@ import { Otp } from "../otp/entities/otp.entity";
 import { UpdateOrganizerDto } from "./dto/updateOrganizer.dto";
 import * as path from "path";
 import * as fs from "fs";
+import { Plan } from "../plans/entities/plan.entity";
+import { OtpService } from "../otp/otp.service";
 
 @Injectable()
 export class OrganizersService {
@@ -31,8 +33,10 @@ export class OrganizersService {
     private eventModel: Model<EventDocument>,
     @InjectModel(User.name)
     private userModel: Model<User>,
+    @InjectModel(Plan.name) private planModel: Model<Plan>,
     private readonly jwtService: JwtService,
     private readonly mailService: MailService
+    // private readonly otpService: OtpService
   ) {}
 
   private normalizeEmail(email: string): string {
@@ -551,6 +555,82 @@ export class OrganizersService {
       }
 
       return { message: "Organizer Found", data: organizer };
+    } catch (error) {
+      console.log(error);
+      throw error;
+    }
+  }
+
+  async addSubscriptionPlan(id: string, planSelected: string) {
+    try {
+      const organizer = await this.organizerModel.findById(id);
+      if (!organizer) {
+        throw new NotFoundException("Organizer Not Found");
+      }
+
+      const plan = await this.planModel.findById(planSelected);
+      if (!plan || !plan.isActive)
+        throw new NotFoundException("Plan Not Found or Inactive");
+
+      organizer.subscribed = true;
+      organizer.planId = plan._id;
+      organizer.planStartDate = new Date();
+      organizer.planExpiryDate = new Date(
+        organizer.planStartDate.getTime() +
+          plan.validityInDays * 24 * 60 * 60 * 1000
+      );
+      organizer.pricePaid = plan.price.toString();
+
+      let message =
+        `🔄 *Plan Activated*\n\n` +
+        `Dear ${organizer.name},\n\n` +
+        `Your Subscription Plan for *${plan.planName}* has been successfully Activated for *${organizer.organizationName}*.\n\n` +
+        `• Plan Validity: ${plan.validityInDays} days\n` +
+        `• Features Included:\n${plan.features.map((f) => `  - ${f}`).join("\n")}\n\n` +
+        `Thank you for choosing us! We’re excited to support your journey.\n\n` +
+        `Best regards,\n` +
+        `The Eventsh Team`;
+
+      await organizer.save();
+
+      // await this.otpService.sendWhatsAppMessage(
+      //   organizer.whatsAppNumber,
+      //   message
+      // );
+
+      return { message: "Plan Added", data: organizer };
+    } catch (error) {
+      console.log(error);
+      throw error;
+    }
+  }
+
+  async cancelSubscription(id: string) {
+    try {
+      const organizer = await this.organizerModel.findById(id);
+
+      if (!organizer) {
+        throw new NotFoundException("Organizer Not Found");
+      }
+
+      organizer.subscribed = false;
+      organizer.planId = null;
+      // organizer.planStartDate = null;
+      organizer.planExpiryDate = new Date();
+
+      let message =
+        `🔄 *Subscription Cancelled*\n\n` +
+        `Dear ${organizer.name},\n\n` +
+        `Your Subscription Plan for *${organizer.organizationName}* has been successfully Cancelled.\n\n`;
+
+      await organizer.save();
+
+      // await this.otpService.sendWhatsAppMessage(
+      //   organizer.whatsAppNumber,
+      //   message
+      // );
+
+      return { message: "Subscription Cancelled", data: organizer };
     } catch (error) {
       console.log(error);
       throw error;

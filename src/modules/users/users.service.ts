@@ -362,4 +362,49 @@ export class UsersService {
       );
     }
   }
+
+  async createUserByShopkeeper(data: CreateUserDto, shopkeeperId: string) {
+    try {
+      const user = await this.userModel.findOne({
+        whatsAppNumber: data.whatsAppNumber,
+        email: data?.email,
+      });
+
+      if (user) {
+        throw new BadRequestException("User Already Exists");
+      }
+
+      const created = new this.userModel({
+        name: data.firstName + " " + data.lastName,
+        email: data.email,
+        provider: "Shopkeeper",
+        providerId: shopkeeperId,
+        whatsAppNumber: data.whatsAppNumber,
+        firstName: data.firstName,
+        lastName: data.lastName,
+      });
+
+      const saved = await created.save();
+      return { message: "User created successfully", data: saved };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async fetchUsersByShopkeeperId(shopkeeperId: string) {
+    try {
+      const user = await this.userModel.find({
+        provider: "Shopkeeper",
+        providerId: shopkeeperId,
+      });
+
+      if (!user) {
+        throw new NotFoundException("user not found");
+      }
+
+      return { message: "Users fetched successfully", data: user };
+    } catch (error) {
+      throw error;
+    }
+  }
 }

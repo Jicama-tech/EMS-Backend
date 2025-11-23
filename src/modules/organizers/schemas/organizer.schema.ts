@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
-import { Document } from "mongoose";
+import { Document, Types } from "mongoose";
 
 export type OrganizerDocument = Organizer & Document;
 
@@ -49,6 +49,21 @@ export class Organizer {
 
   @Prop()
   createdAt: Date;
+
+  @Prop({ default: false })
+  subscribed?: boolean;
+
+  @Prop()
+  planStartDate?: Date;
+
+  @Prop()
+  planExpiryDate?: Date;
+
+  @Prop()
+  pricePaid?: string;
+
+  @Prop({ type: Types.ObjectId, ref: "Plan", required: false })
+  planId?: Types.ObjectId | null;
 }
 
 export const OrganizerSchema = SchemaFactory.createForClass(Organizer);

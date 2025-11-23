@@ -38,6 +38,12 @@ export class Shopkeeper {
   @Prop({ required: true })
   whatsappNumber: string;
 
+  @Prop()
+  shopClosedFromDate?: Date;
+
+  @Prop()
+  shopClosedToDate?: Date;
+
   @Prop({ default: 0 })
   taxPercentage: number;
 

@@ -67,6 +67,29 @@ export class ShopkeepersService {
       if (!shopkeeper) {
         throw new NotFoundException("Shopkeeper not found");
       }
+
+      if (shopkeeper.shopClosedToDate) {
+        const today = new Date();
+        const closedTo = new Date(shopkeeper.shopClosedToDate);
+
+        // if today is after the closed-to date, clear both fields
+        if (today > closedTo) {
+          await this.shopModel.findByIdAndUpdate(
+            id,
+            {
+              $unset: {
+                shopClosedFromDate: "",
+                shopClosedToDate: "",
+              },
+            },
+            { new: true }
+          );
+          // optionally also update the in-memory object if you need it fresh:
+          shopkeeper.shopClosedFromDate = undefined;
+          shopkeeper.shopClosedToDate = undefined;
+        }
+      }
+
       return { message: "Shopkeeper Found", data: shopkeeper };
     } catch (error) {
       console.log(error);
@@ -416,6 +439,8 @@ export class ShopkeepersService {
       taxPercentage?: string;
       businessCategory?: string;
       paymentURL?: string; // keep if you still send a string
+      shopClosedFromDate?: Date;
+      shopClosedToDate?: Date;
     },
     paymentQrPublicUrl?: string | null
   ) {
@@ -441,6 +466,10 @@ export class ShopkeepersService {
     if (body.businessCategory !== undefined)
       update.businessCategory = body.businessCategory;
     if (body.paymentURL !== undefined) update.paymentURL = body.paymentURL;
+    if (body.shopClosedFromDate !== undefined)
+      update.shopClosedFromDate = body.shopClosedFromDate;
+    if (body.shopClosedToDate !== undefined)
+      update.shopClosedToDate = body.shopClosedToDate;
 
     // Persist uploaded QR public URL to document
     if (paymentQrPublicUrl) {

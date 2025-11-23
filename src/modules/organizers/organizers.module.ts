@@ -10,6 +10,8 @@ import { MailService } from "../roles/mail.service";
 import { OtpSchema } from "../otp/entities/otp.entity";
 import { OtpModule } from "../otp/otp.module";
 import { MailModule } from "../roles/mail.module";
+import { PlanSchema } from "../plans/entities/plan.entity";
+import { OtpService } from "../otp/otp.service";
 
 @Module({
   imports: [
@@ -18,6 +20,7 @@ import { MailModule } from "../roles/mail.module";
       { name: "Event", schema: EventSchema },
       { name: "User", schema: UserSchema },
       { name: "Otp", schema: OtpSchema },
+      { name: "Plan", schema: PlanSchema },
     ]),
     forwardRef(() => OtpModule),
     MailModule,

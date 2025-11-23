@@ -181,4 +181,28 @@ export class UsersController {
       throw error;
     }
   }
+
+  @Post("create-user-by-shopkeeper/:shopkeeperId")
+  async createUserByShopkeeper(
+    @Body() createUserDto: CreateUserDto,
+    @Param("shopkeeperId") shopkeeperId: string
+  ) {
+    try {
+      return await this.usersService.createUserByShopkeeper(
+        createUserDto,
+        shopkeeperId
+      );
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @Get("fetch-users-by-shopkeeper/:shopkeeperId")
+  async fetchUsersByShopkeeperId(@Param("shopkeeperId") shopkeeperId: string) {
+    try {
+      return await this.usersService.fetchUsersByShopkeeperId(shopkeeperId);
+    } catch (error) {
+      throw error;
+    }
+  }
 }

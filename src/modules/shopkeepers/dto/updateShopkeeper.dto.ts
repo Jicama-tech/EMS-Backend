@@ -5,6 +5,7 @@ import {
   IsOptional,
   IsBoolean,
   IsNumber,
+  IsDate,
 } from "class-validator";
 
 export class UpdateShopkeeperDto {
@@ -63,4 +64,12 @@ export class UpdateShopkeeperDto {
   @IsString()
   @IsOptional()
   paymentQrUrl?: string;
+
+  @IsDate()
+  @IsOptional()
+  shopClosedFromDate?: Date;
+
+  @IsDate()
+  @IsOptional()
+  shopClosedToDate?: Date;
 }
