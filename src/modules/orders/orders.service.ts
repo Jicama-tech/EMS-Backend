@@ -498,6 +498,7 @@ export class OrdersService {
       return await this.orderModel
         .find({ shopkeeperId })
         .populate("userId")
+        .sort({ createdAt: -1 })
         .exec();
     } catch (error) {
       if (error instanceof NotFoundException) throw error;

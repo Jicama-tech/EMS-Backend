@@ -259,7 +259,7 @@ export class UsersService {
   async sendWhatsAppOtp(whatsAppNumber: string) {
     try {
       const user = await this.userModel.findOne({ whatsAppNumber });
-      if (!user) throw new NotFoundException("User not found");
+      // if (!user) throw new NotFoundException("User not found");
 
       // if (user.whatsAppNumber) {
       //   return {
