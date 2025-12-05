@@ -70,14 +70,24 @@ export class EventsService {
         tableTemplates: createEventDto.tableTemplates || [],
         venueTables: createEventDto.venueTables || [],
         addOnItems: createEventDto.addOnItems || [],
-        venueConfig: createEventDto.venueConfig || {
-          width: 800,
-          height: 500,
-          scale: 0.75,
-          gridSize: 20,
-          showGrid: true,
-          hasMainStage: true,
-        },
+
+        // IMPORTANT: venueConfig is now an ARRAY
+        venueConfig:
+          createEventDto.venueConfig && createEventDto.venueConfig.length > 0
+            ? createEventDto.venueConfig
+            : [
+                {
+                  venueConfigId: "venueConfig1",
+                  width: 800,
+                  height: 500,
+                  scale: 0.75,
+                  gridSize: 20,
+                  showGrid: true,
+                  hasMainStage: true,
+                  totalRows: 3,
+                },
+              ],
+
         status: createEventDto.status || "draft",
         featured: createEventDto.featured || false,
       });
@@ -156,14 +166,6 @@ export class EventsService {
       } else if (updateEventDto.startDate) {
         updateEventDto.endDate = new Date(updateEventDto.startDate) as any;
       }
-
-      // Handle organizer ID
-      // if (updateEventDto.organizerId) {
-      //   updateEventDto.organizer = new Types.ObjectId(
-      //     updateEventDto.organizerId
-      //   );
-      //   delete updateEventDto.organizerId;
-      // }
 
       const updatedEvent = await this.eventModel
         .findByIdAndUpdate(id, updateEventDto, {

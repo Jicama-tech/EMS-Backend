@@ -17,6 +17,9 @@ class SelectedTable {
   @Prop({ required: true })
   tableType: string;
 
+  @Prop()
+  layoutName: string;
+
   @Prop({ required: true })
   price: number;
 

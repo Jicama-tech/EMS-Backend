@@ -3,6 +3,32 @@ import { Document, Types } from "mongoose";
 
 export type EventDocument = Event & Document;
 
+class VenueConfig {
+  @Prop()
+  venueConfigId: string;
+
+  @Prop()
+  width: number;
+
+  @Prop()
+  height: number;
+
+  @Prop()
+  scale: number;
+
+  @Prop()
+  gridSize: number;
+
+  @Prop()
+  showGrid: boolean;
+
+  @Prop()
+  hasMainStage: boolean;
+
+  @Prop()
+  totalRows: number;
+}
+
 @Schema({ timestamps: true })
 export class Event {
   @Prop({ required: true })
@@ -133,6 +159,7 @@ export class Event {
 
   @Prop({ type: Array, default: [] })
   venueTables: {
+    venueConfigId: string;
     positionId: string;
     id: string;
     name: string;
@@ -160,26 +187,21 @@ export class Event {
   }[];
 
   @Prop({
-    type: Object,
-    default: {
-      width: 800,
-      height: 500,
-      scale: 0.75,
-      gridSize: 20,
-      showGrid: true,
-      hasMainStage: true,
-      totalRows: 3, // NEW: Total number of rows in venue
-    },
+    type: [Object],
+    default: [
+      {
+        venueConfigId: "venueConfig1",
+        width: 800,
+        height: 500,
+        scale: 0.75,
+        gridSize: 20,
+        showGrid: true,
+        hasMainStage: true,
+        totalRows: 3,
+      },
+    ],
   })
-  venueConfig: {
-    width: number;
-    height: number;
-    scale: number;
-    gridSize: number;
-    showGrid: boolean;
-    hasMainStage: boolean;
-    totalRows: number; // NEW: Total number of rows
-  };
+  venueConfig: VenueConfig[];
 
   @Prop({ enum: ["draft", "published", "cancelled"], default: "draft" })
   status: string;

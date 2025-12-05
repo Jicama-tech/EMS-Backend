@@ -183,6 +183,8 @@ export class StallsService {
         throw new BadRequestException("Invalid stall ID format");
       }
 
+      console.log(stallId, selectDto, "stallId, selectDto");
+
       const stall = await this.stallModel.findById(stallId).populate("eventId");
       if (!stall) {
         throw new NotFoundException("Stall request not found");
@@ -194,8 +196,30 @@ export class StallsService {
         );
       }
 
-      const event: any = stall.eventId;
-      if (!event.venueTables || event.venueTables.length === 0) {
+      const eventDoc: any = stall.eventId;
+      if (!eventDoc) {
+        throw new NotFoundException("Event not found for this stall.");
+      }
+
+      const event = eventDoc.toObject ? eventDoc.toObject() : eventDoc;
+
+      // ✅ FIX: Handle venueTables as OBJECT with layout IDs
+      let allTables: any[] = [];
+
+      if (typeof event.venueTables === "object" && event.venueTables !== null) {
+        // venueTables is an object with layout IDs as keys
+        allTables = Object.values(event.venueTables).flat();
+        console.log(
+          "📊 venueTables is object - extracted tables:",
+          allTables.length
+        );
+      } else if (Array.isArray(event.venueTables)) {
+        // venueTables is an array (backward compatibility)
+        allTables = event.venueTables;
+        console.log("📊 venueTables is array:", allTables.length);
+      }
+
+      if (!allTables || allTables.length === 0) {
         throw new BadRequestException("No tables available for this event");
       }
 
@@ -268,13 +292,39 @@ export class StallsService {
           { path: "organizerId", select: "name email organizationName" },
         ]);
 
-      const updatedVenueTables = event.venueTables.map((table: any) => {
-        const isSelected = selectedPositionIds.includes(table.positionId);
-        return {
-          ...table,
-          isBooked: isSelected ? true : table.isBooked,
-        };
-      });
+      // ✅ FIX: Update venueTables correctly (handle object structure)
+      const updatedVenueTables: any = {};
+
+      if (
+        typeof event.venueTables === "object" &&
+        !Array.isArray(event.venueTables)
+      ) {
+        // venueTables is object with layout IDs
+        Object.keys(event.venueTables).forEach((layoutId) => {
+          updatedVenueTables[layoutId] = event.venueTables[layoutId].map(
+            (table: any) => {
+              const isSelected = selectedPositionIds.includes(table.positionId);
+              const tableObject = table.toObject ? table.toObject() : table;
+              return {
+                ...tableObject,
+                isBooked: isSelected ? true : tableObject.isBooked,
+              };
+            }
+          );
+        });
+      } else {
+        // venueTables is array (backward compatibility)
+        updatedVenueTables.default = allTables.map((table: any) => {
+          const isSelected = selectedPositionIds.includes(table.positionId);
+          const tableObject = table.toObject ? table.toObject() : table;
+          return {
+            ...tableObject,
+            isBooked: isSelected ? true : tableObject.isBooked,
+          };
+        });
+      }
+
+      console.log(updatedVenueTables, "updatedVenueTables");
 
       await this.eventModel.findByIdAndUpdate(
         event._id,
@@ -527,6 +577,7 @@ export class StallsService {
                 (t) => `
               <div class="table-item">
                 <strong>${t.tableName}</strong> (${t.tableType})<br>
+                Venue Name: ${t.layoutName}</br>
                 Price: $${t.price.toFixed(2)} | Deposit: $${t.depositAmount.toFixed(2)}
               </div>
             `

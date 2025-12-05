@@ -3,14 +3,12 @@ import {
   IsDateString,
   IsOptional,
   IsArray,
-  IsObject,
   IsUrl,
   IsBoolean,
   IsEnum,
   ValidateNested,
   IsNumber,
   Min,
-  Max,
 } from "class-validator";
 import { Type } from "class-transformer";
 
@@ -70,7 +68,7 @@ export class FeaturesDto {
   accessibility?: boolean;
 }
 
-// UPDATED: TableTemplateDto with row-based pricing
+// Table templates (row-based pricing)
 export class TableTemplateDto {
   @IsString()
   id: string;
@@ -87,32 +85,26 @@ export class TableTemplateDto {
   @IsNumber()
   height: number;
 
-  // NEW: Row number for pricing
   @IsNumber()
   @Min(1)
   rowNumber: number;
 
-  // NEW: Table Price (full rental price)
   @IsNumber()
   @Min(0)
   tablePrice: number;
 
-  // NEW: Booking Price (partial payment, must be <= tablePrice)
   @IsNumber()
   @Min(0)
   bookingPrice: number;
 
-  // NEW: Deposit Price (security deposit, can be > tablePrice)
   @IsNumber()
   @Min(0)
   depositPrice: number;
 
-  // NEW: Booking status
   @IsBoolean()
   @IsOptional()
   isBooked?: boolean;
 
-  // NEW: Reference to shopkeeper/stall booking
   @IsString()
   @IsOptional()
   bookedBy?: string;
@@ -122,7 +114,7 @@ export class TableTemplateDto {
   customDimensions?: boolean;
 }
 
-// UPDATED: PositionedTableDto with row-based pricing
+// Positioned tables (extends template)
 export class PositionedTableDto extends TableTemplateDto {
   @IsString()
   positionId: string;
@@ -138,8 +130,12 @@ export class PositionedTableDto extends TableTemplateDto {
 
   @IsBoolean()
   isPlaced: boolean;
+
+  @IsString()
+  venueConfigId: string;
 }
 
+// Add-on items
 export class AddOnItemDto {
   @IsString()
   id: string;
@@ -155,8 +151,11 @@ export class AddOnItemDto {
   description?: string;
 }
 
-// UPDATED: VenueConfigDto with totalRows
+// Venue configs (now array, includes venueConfigId)
 export class VenueConfigDto {
+  @IsString()
+  venueConfigId: string;
+
   @IsNumber()
   width: number;
 
@@ -175,7 +174,6 @@ export class VenueConfigDto {
   @IsBoolean()
   hasMainStage: boolean;
 
-  // NEW: Total number of rows in venue
   @IsNumber()
   @Min(1)
   @IsOptional()
@@ -303,10 +301,11 @@ export class CreateEventDto {
   @Type(() => AddOnItemDto)
   addOnItems?: AddOnItemDto[];
 
-  @ValidateNested()
+  // CHANGED: now array to match schema
+  @ValidateNested({ each: true })
   @IsOptional()
   @Type(() => VenueConfigDto)
-  venueConfig?: VenueConfigDto;
+  venueConfig?: VenueConfigDto[];
 
   @IsEnum(EventStatus)
   @IsOptional()

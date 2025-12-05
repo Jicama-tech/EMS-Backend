@@ -54,6 +54,48 @@ export class MailService {
     });
   }
 
+  async sendEnquiryConfirmationToUser(data: {
+    firstName: string;
+    emailId: string;
+    enquiryFor: string;
+    organizationName: string;
+  }) {
+    const enquiryLabelMap: Record<string, string> = {
+      events: "Events Management",
+      eshop: "E‑Shop Platform",
+      both: "Events & E‑Shop",
+    };
+
+    const enquiryLabel = enquiryLabelMap[data.enquiryFor] ?? "EventSH Services";
+
+    await this.transporter.sendMail({
+      from: `"EventSH" <${process.env.SMTP_USER}>`,
+      to: data.emailId,
+      subject: `We’ve received your enquiry for ${enquiryLabel}`,
+      html: `
+      <div style="font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #111827; line-height: 1.6;">
+        <h1 style="font-size: 20px; margin-bottom: 12px;">Hi ${data.firstName},</h1>
+        <p style="margin: 0 0 8px;">
+          Thank you for reaching out to <strong>EventSH</strong> from <strong>${data.organizationName}</strong>.
+        </p>
+        <p style="margin: 0 0 8px;">
+          Your enquiry for <strong>${enquiryLabel}</strong> has been received successfully.
+        </p>
+        <p style="margin: 0 0 8px;">
+          Our team will review your requirements and get back to you as soon as possible with the next steps.
+        </p>
+        <p style="margin: 0 0 8px;">
+          If you need to share any additional details, you can simply reply to this email.
+        </p>
+        <p style="margin-top: 16px;">
+          Regards,<br/>
+          <strong>EventSH Team</strong>
+        </p>
+      </div>
+    `,
+    });
+  }
+
   // ✉️ Send status update email (Approved or Rejected)
   async sendStatusUpdate(data: {
     name: string;

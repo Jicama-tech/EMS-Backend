@@ -24,6 +24,9 @@ export class SelectedTableDto {
   @IsString()
   tableType: string;
 
+  @IsString()
+  layoutName: string;
+
   @IsNumber()
   @Min(0)
   price: number;
