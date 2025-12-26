@@ -10,6 +10,7 @@ import {
   Post,
   Param,
   BadRequestException,
+  Query,
 } from "@nestjs/common";
 import { AuthGuard } from "@nestjs/passport";
 import { Request, Response } from "express";
@@ -90,6 +91,17 @@ export class UsersController {
     }
   }
 
+  @Get("get-user-by-whatsAppNumber/:whatsAppNumber")
+  async getUserByWhatsAppNumber(
+    @Param("whatsAppNumber") whatsAppNumber: string
+  ) {
+    try {
+      return await this.usersService.fetchUserByWhatsAppNumber(whatsAppNumber);
+    } catch (error) {
+      throw error;
+    }
+  }
+
   /**
    * NEW: Email verification for cart
    */
@@ -157,6 +169,28 @@ export class UsersController {
     }
   }
 
+  @Get("reverse")
+  async reverseGeocode(@Query("lat") lat: string, @Query("lng") lng: string) {
+    const apiKey = process.env.GEOAPIFY_KEY; // or any provider key
+    console.log(apiKey, "apiKey");
+    const url = `https://api.geoapify.com/v1/geocode/reverse?lat=${lat}&lon=${lng}&apiKey=${apiKey}`;
+
+    const res = await fetch(url);
+    if (!res.ok) {
+      throw new Error("Reverse geocoding failed");
+    }
+    const json = await res.json();
+
+    const props = json.features?.[0]?.properties;
+    return {
+      country: props?.country,
+      state: props?.state || props?.state_code,
+      city: props?.city || props?.town || props?.village,
+      postcode: props?.postcode,
+      fullAddress: props?.formatted,
+    };
+  }
+
   /**
    * NEW: Check WhatsApp verification status
    */
@@ -172,11 +206,19 @@ export class UsersController {
   //     throw error;
   //   }
   // }
-
   @Post("get-by-email")
   async getProfile(@Body() email: string) {
     try {
       return await this.usersService.findByEmail(email);
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @Get("get-user-By-id/:id")
+  async getUserById(@Param("id") id: string) {
+    try {
+      return await this.usersService.findById(id);
     } catch (error) {
       throw error;
     }

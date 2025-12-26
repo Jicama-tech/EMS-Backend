@@ -66,7 +66,15 @@ export class UsersService {
 
   async findById(id: string) {
     try {
-      return await this.userModel.findById(id).exec();
+      const user = await this.userModel.find({ _id: id });
+
+      if (!user) {
+        throw new NotFoundException("User not found");
+      }
+
+      console.log(user, "User");
+
+      return { message: "User Found", data: user };
     } catch (error) {
       console.error(`Failed to find user by ID: ${error.message}`);
       return null;
@@ -403,6 +411,22 @@ export class UsersService {
       }
 
       return { message: "Users fetched successfully", data: user };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async fetchUserByWhatsAppNumber(whatsAppNumber: string) {
+    try {
+      const user = await this.userModel.findOne({
+        whatsAppNumber: whatsAppNumber,
+      });
+
+      if (!user) {
+        throw new NotFoundException("User Not Found");
+      }
+
+      return { message: "user Found", data: user };
     } catch (error) {
       throw error;
     }

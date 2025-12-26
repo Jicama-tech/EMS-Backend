@@ -4,6 +4,8 @@ import {
   MinLength,
   IsOptional,
   IsEmail,
+  IsBoolean,
+  IsEnum,
 } from "class-validator";
 
 export class CreateShopkeeperDto {
@@ -20,11 +22,6 @@ export class CreateShopkeeperDto {
   email: string;
 
   @IsString()
-  @MinLength(8)
-  @IsNotEmpty()
-  password: string;
-
-  @IsString()
   @IsNotEmpty()
   phone: string;
 
@@ -38,13 +35,30 @@ export class CreateShopkeeperDto {
 
   @IsString()
   @IsNotEmpty()
-  whatsappNumber: string; // <-- MAKE REQUIRED
+  whatsappNumber: string;
 
-  @IsString()
-  @IsOptional()
-  businessEmail?: string; // <-- MAKE OPTIONAL
+  @IsEmail() // ← CHANGED: Email validation
+  @IsNotEmpty() // ← CHANGED: Required (matches schema)
+  businessEmail: string;
 
   @IsString()
   @IsNotEmpty()
   businessCategory: string;
+
+  @IsString()
+  @IsNotEmpty()
+  GSTNumber: string;
+
+  // ← NEW FIELDS (Singapore/Country support)
+  @IsString()
+  @IsOptional()
+  UENNumber?: string;
+
+  @IsString()
+  @IsNotEmpty()
+  country: string;
+
+  @IsBoolean()
+  @IsNotEmpty()
+  hasDocVerification: boolean;
 }

@@ -32,5 +32,6 @@ import { ShopkeepersModule } from "../shopkeepers/shopkeepers.module";
   ],
   controllers: [RoleController],
   providers: [RoleService, RegistrationService],
+  exports: [RoleService],
 })
 export class RolesModule {}

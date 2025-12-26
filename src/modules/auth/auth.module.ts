@@ -7,6 +7,8 @@ import { AuthController } from "./auth.controller";
 import { JwtStrategy } from "./strategies/jwt.strategy";
 import { GoogleStrategy } from "./strategies/google.strategy";
 import { InstagramStrategy } from "./strategies/instagram.strategy";
+import { GoogleShopkeeperStrategy } from "./strategies/shopkeeper-google.strategy";
+import { RolesModule } from "../roles/roles.module";
 
 @Module({
   imports: [
@@ -16,8 +18,15 @@ import { InstagramStrategy } from "./strategies/instagram.strategy";
       signOptions: { expiresIn: process.env.JWT_ACCESS_EXPIRY || "900s" },
     }),
     UsersModule,
+    RolesModule,
   ],
-  providers: [AuthService, JwtStrategy, GoogleStrategy, InstagramStrategy],
+  providers: [
+    AuthService,
+    JwtStrategy,
+    GoogleStrategy,
+    GoogleShopkeeperStrategy,
+    InstagramStrategy,
+  ],
   controllers: [AuthController],
   exports: [AuthService, JwtModule],
 })

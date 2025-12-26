@@ -4,6 +4,7 @@ import {
   NotFoundException,
   UnauthorizedException,
   BadRequestException,
+  Logger,
 } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
@@ -15,15 +16,25 @@ import { MailService } from "../roles/mail.service";
 import { CreateShopkeeperDto } from "./dto/createShopkeeper.dto";
 import { Otp } from "../otp/entities/otp.entity";
 import { Types } from "mongoose";
+import Razorpay from "razorpay";
+import { CreateRazorpayLinkedAccountDto } from "./dto/razorpay.dto";
 
 @Injectable()
 export class ShopkeepersService {
+  private logger = new Logger(ShopkeepersService.name);
+  private razorPay: Razorpay;
   constructor(
     @InjectModel(Shopkeeper.name) private shopModel: Model<ShopkeeperDocument>,
     @InjectModel(Otp.name) private otpModel: Model<Otp>, // Use your existing Otp model
     private readonly jwtService: JwtService,
     private readonly mailService: MailService
-  ) {}
+  ) {
+    const Razorpay = require("razorpay");
+    this.razorPay = new Razorpay({
+      key_id: process.env.RAZORPAY_PARTNER_KEY_ID,
+      key_secret: process.env.RAZORPAY_PARTNER_SECRET,
+    });
+  }
 
   private normalizeEmail(email: string): string {
     return email.toLowerCase().trim();
@@ -32,6 +43,138 @@ export class ShopkeepersService {
   async create(data: Partial<Shopkeeper>) {
     const created = new this.shopModel(data);
     return created.save();
+  }
+
+  async createRazorpayLinkedAccount(
+    shopkeeperId: string,
+    dto: CreateRazorpayLinkedAccountDto
+  ) {
+    try {
+      this.logger.log(`Creating Razorpay linked account for: ${shopkeeperId}`);
+
+      // Validate required fields
+      if (!dto.businessName || !dto.panNumber || !dto.bankAccountNumber) {
+        throw new BadRequestException("Missing required KYC fields");
+      }
+
+      // Call Razorpay Partner API
+      const linkedAccount = await this.razorPay.accounts.create({
+        email: dto.businessEmail,
+        phone: dto.businessPhone,
+        type: "route", // Enable Route for settlement splits
+        legal_business_name: dto.businessName,
+        business_type: dto.businessType,
+
+        // Address
+        legal_address: {
+          street: dto.address,
+          city: dto.city,
+          state: dto.state,
+          postal_code: dto.zipcode,
+          country: dto.country === "IN" ? "IN" : "SG",
+        },
+
+        // KYC Details
+        ...(dto.country === "IN" && {
+          pan: dto.panNumber,
+          gst: dto.gstNumber || null,
+        }),
+        ...(dto.country === "SG" && {
+          uen: dto.uenNumber,
+        }),
+
+        // Bank account for payouts
+        bank_account: {
+          ifsc_code: dto.ifscCode,
+          beneft_name: dto.accountHolderName,
+          account_number: dto.bankAccountNumber,
+          account_type: "savings",
+        },
+
+        // Internal notes
+        notes: {
+          shopkeeper_id: shopkeeperId,
+          platform: "EventSH",
+          created_at: new Date().toISOString(),
+        },
+      } as any);
+
+      this.logger.log(`✅ Linked account created: ${linkedAccount.id}`);
+
+      // Save to database
+      const updated = await this.shopModel.findByIdAndUpdate(
+        shopkeeperId,
+        {
+          razorpay: {
+            accountId: linkedAccount.id,
+            status: linkedAccount.status || "pending_kyc",
+            kycStatus: (linkedAccount as any).kyc_status || "not_provided",
+            businessName: dto.businessName,
+            panNumber: dto.panNumber,
+            gstNumber: dto.gstNumber,
+            uenNumber: dto.uenNumber,
+            bankAccountNumber: dto.bankAccountNumber,
+            bankIfscCode: dto.ifscCode,
+            bankName: dto.bankName,
+            accountHolderName: dto.accountHolderName,
+            businessEmail: dto.businessEmail,
+            businessPhone: dto.businessPhone,
+            createdAt: new Date(),
+          },
+        },
+        { new: true }
+      );
+
+      return {
+        success: true,
+        accountId: linkedAccount.id,
+        status: linkedAccount.status,
+        message:
+          "Account created. KYC review: 1-3 business days. Money will settle directly to your bank.",
+      };
+    } catch (error) {
+      this.logger.error(`Failed to create linked account: ${error.message}`);
+      throw new BadRequestException(`Razorpay setup failed: ${error.message}`);
+    }
+  }
+
+  // ✅ NEW: Check Razorpay Account Status
+  async checkRazorpayAccountStatus(accountId: string) {
+    try {
+      const account = await this.razorPay.accounts.fetch(accountId);
+
+      return {
+        accountId: account.id,
+        status: account.status, // 'pending_kyc', 'active', 'rejected', 'suspended'
+        kycStatus: (account as any).kyc_status,
+        isActive: account.status === "active",
+      };
+    } catch (error) {
+      this.logger.error(`Failed to check account status: ${error.message}`);
+      throw new BadRequestException("Could not fetch account status");
+    }
+  }
+
+  // ✅ NEW: Update Razorpay account status (called by cron/polling)
+  async updateRazorpayAccountStatus(shopkeeperId: string, accountId: string) {
+    try {
+      const status = await this.checkRazorpayAccountStatus(accountId);
+
+      if (status.isActive) {
+        await this.shopModel.findByIdAndUpdate(shopkeeperId, {
+          "razorpay.status": "active",
+          "razorpay.verifiedAt": new Date(),
+        });
+
+        this.logger.log(`✅ Account activated: ${accountId}`);
+        return { isActive: true };
+      }
+
+      return { isActive: false, status: status.status };
+    } catch (error) {
+      this.logger.error(`Account status update failed: ${error.message}`);
+      throw error;
+    }
   }
 
   async list() {
@@ -235,6 +378,7 @@ export class ShopkeepersService {
         name: shopkeeper.name,
         email: shopkeeper.email,
         sub: shopkeeper._id,
+        country: shopkeeper.country,
         roles: ["shopkeeper"],
       };
 
@@ -359,10 +503,10 @@ export class ShopkeepersService {
         );
       }
 
-      const isMatch = await bcrypt.compare(dto.password, shopkeeper.password);
-      if (!isMatch) {
-        throw new UnauthorizedException("Invalid Credentials");
-      }
+      // const isMatch = await bcrypt.compare(dto.password, shopkeeper.password);
+      // if (!isMatch) {
+      //   throw new UnauthorizedException("Invalid Credentials");
+      // }
 
       const payload = {
         name: shopkeeper.name,
@@ -387,12 +531,9 @@ export class ShopkeepersService {
     const normalizedEmail = this.normalizeEmail(dto.email);
     const existing = await this.shopModel.findOne({ email: normalizedEmail });
     if (existing) throw new ConflictException("Email already registered");
-
-    const hashed = await bcrypt.hash(dto.password, 10);
     const created = await new this.shopModel({
       ...dto,
       email: normalizedEmail,
-      password: hashed,
       approved: false,
       rejected: false,
       status: "pending",
@@ -411,7 +552,6 @@ export class ShopkeepersService {
     });
 
     const userObj = created.toObject();
-    delete userObj.password;
     return userObj;
   }
 
@@ -421,7 +561,7 @@ export class ShopkeepersService {
       throw new NotFoundException("Shopkeeper not found with this id");
     }
 
-    delete shopkeeper.password;
+    // delete shopkeeper.password;
     return { message: "Shopkeeper Found", data: shopkeeper };
   }
 
@@ -436,11 +576,15 @@ export class ShopkeepersService {
       phone?: string;
       address?: string;
       description?: string;
-      taxPercentage?: string;
+      GSTNumber?: string;
+      UENNumber?: string;
+      hasDocVerification?: boolean;
+      taxPercentage?: string | number; // Accept both string/number from FormData
       businessCategory?: string;
-      paymentURL?: string; // keep if you still send a string
-      shopClosedFromDate?: Date;
-      shopClosedToDate?: Date;
+      paymentURL?: string;
+      shopClosedFromDate?: Date; // Accept string from FormData
+      shopClosedToDate?: Date; // Accept string from FormData
+      country?: string; // IN/SG
     },
     paymentQrPublicUrl?: string | null
   ) {
@@ -450,6 +594,7 @@ export class ShopkeepersService {
 
     const update: Record<string, any> = {};
 
+    // ✅ EXISTING FIELDS
     if (body.ownerName !== undefined) update.name = body.ownerName;
     if (body.shopName !== undefined) update.shopName = body.shopName;
     if (body.email !== undefined)
@@ -461,22 +606,54 @@ export class ShopkeepersService {
     if (body.phone !== undefined) update.phone = body.phone;
     if (body.address !== undefined) update.address = body.address;
     if (body.description !== undefined) update.description = body.description;
-    if (body.taxPercentage !== undefined)
-      update.taxPercentage = body.taxPercentage;
+
+    // ✅ NEW FIELDS
+    if (body.GSTNumber !== undefined) update.GSTNumber = body.GSTNumber;
+    if (body.UENNumber !== undefined) update.UENNumber = body.UENNumber;
+    if (body.hasDocVerification !== undefined) {
+      // ✅ Type-safe boolean conversion
+      update.hasDocVerification =
+        typeof body.hasDocVerification === "boolean"
+          ? body.hasDocVerification
+          : body.hasDocVerification === "true";
+    }
     if (body.businessCategory !== undefined)
       update.businessCategory = body.businessCategory;
-    if (body.paymentURL !== undefined) update.paymentURL = body.paymentURL;
-    if (body.shopClosedFromDate !== undefined)
-      update.shopClosedFromDate = body.shopClosedFromDate;
-    if (body.shopClosedToDate !== undefined)
-      update.shopClosedToDate = body.shopClosedToDate;
 
-    // Persist uploaded QR public URL to document
-    if (paymentQrPublicUrl) {
-      update.paymentURL = paymentQrPublicUrl;
+    // ✅ TAX PERCENTAGE (handle string/number)
+    if (body.taxPercentage !== undefined) {
+      const taxNum =
+        typeof body.taxPercentage === "string"
+          ? parseFloat(body.taxPercentage)
+          : body.taxPercentage;
+      update.taxPercentage = isNaN(taxNum) ? 0 : taxNum;
     }
 
-    console.log(update, "update");
+    // ✅ DATES (handle string/Date from FormData)
+    if (body.shopClosedFromDate !== undefined) {
+      update.shopClosedFromDate =
+        typeof body.shopClosedFromDate === "string"
+          ? new Date(body.shopClosedFromDate)
+          : body.shopClosedFromDate;
+    }
+    if (body.shopClosedToDate !== undefined) {
+      update.shopClosedToDate =
+        typeof body.shopClosedToDate === "string"
+          ? new Date(body.shopClosedToDate)
+          : body.shopClosedToDate;
+    }
+
+    // ✅ NEW: Country field
+    if (body.country !== undefined) update.country = body.country;
+
+    // ✅ Persist uploaded QR public URL (overrides paymentURL if provided)
+    if (paymentQrPublicUrl) {
+      update.paymentURL = paymentQrPublicUrl;
+    } else if (body.paymentURL !== undefined) {
+      update.paymentURL = body.paymentURL;
+    }
+
+    console.log("Update payload:", update);
 
     const updated = await this.shopModel
       .findByIdAndUpdate(id, update, { new: true, runValidators: true })
@@ -487,8 +664,14 @@ export class ShopkeepersService {
       throw new NotFoundException("Shopkeeper not found");
     }
 
+    // ✅ Remove sensitive data
     delete (updated as any).password;
-    return { message: "Profile updated", data: updated };
+    delete (updated as any).__v;
+
+    return {
+      message: "Profile updated successfully",
+      data: updated,
+    };
   }
 
   async findByWhatsAppNumber(whatsAppNumber: string) {
@@ -506,6 +689,7 @@ export class ShopkeepersService {
         name: shopkeeper.name,
         email: shopkeeper.email,
         sub: shopkeeper._id,
+        country: shopkeeper.country,
         roles: ["shopkeeper"],
       };
 
@@ -537,5 +721,7 @@ export class ShopkeepersService {
     }
   }
 
-  async registerForStall() {}
+  async findByRazorpayStatus(status: string) {
+    return this.shopModel.find({ "razorpay.status": status });
+  }
 }

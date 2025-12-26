@@ -123,7 +123,7 @@ export class EventsController {
     }
   }
 
-  @Get()
+  @Get("get-events")
   async getAllEvents() {
     try {
       const events = await this.eventsService.findAll();

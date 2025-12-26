@@ -41,6 +41,38 @@ export class OrdersService {
     private readonly usersService: UsersService
   ) {}
 
+  private formatPriceByCountry(amount: number, countryCode: string): string {
+    if (amount == null) return "0.00";
+
+    const map: Record<
+      string,
+      { locale: string; currency: string; symbol?: string }
+    > = {
+      IN: { locale: "en-IN", currency: "INR", symbol: "₹" },
+      SG: { locale: "en-SG", currency: "SGD", symbol: "S$" },
+      US: { locale: "en-US", currency: "USD" },
+      GB: { locale: "en-GB", currency: "GBP" },
+    };
+
+    const cfg = map[countryCode] || { locale: "en-US", currency: "USD" };
+
+    const formatted = amount.toLocaleString(cfg.locale, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+
+    if (cfg.symbol) {
+      return `${cfg.symbol}${formatted}`;
+    }
+
+    return amount.toLocaleString(cfg.locale, {
+      style: "currency",
+      currency: cfg.currency,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+  }
+
   async createOrder(dto: CreateOrderDto): Promise<Order> {
     try {
       // Step 1. Find or create user by WhatsApp number
@@ -102,22 +134,75 @@ export class OrdersService {
       .populate("shopkeeperId")
       .exec();
 
-    const user = order.userId;
-    const shopkeeper = order.shopkeeperId;
+    if (!order) throw new NotFoundException("Order not found");
 
-    const customerDetail = await this.userModel.findOne({ _id: user });
+    const user: any = order.userId;
+    const shopkeeper: any = order.shopkeeperId;
+
+    const customerDetail = await this.userModel.findOne({ _id: user._id });
     const shopkeeperDetail = await this.shopkeeperModel.findOne({
-      _id: shopkeeper,
+      _id: shopkeeper._id,
     });
 
     if (!shopkeeperDetail) throw new NotFoundException("Shopkeeper Not Found");
     if (!customerDetail) throw new NotFoundException("Customer Not Found");
 
+    // Helper: format date/time similar to frontend
+    const formatDate = (d: Date) =>
+      new Date(d).toLocaleDateString("en-IN", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      });
+
+    const formatTime = (d: Date) =>
+      new Date(d).toLocaleTimeString("en-IN", {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+
+    // Helper: currency formatting similar to formatPrice (IN/SG etc.)
+    const formatPriceByCountry = (amount: number, countryCode: string) => {
+      if (amount == null) return "0.00";
+
+      const map: Record<
+        string,
+        { locale: string; currency: string; symbol?: string }
+      > = {
+        IN: { locale: "en-IN", currency: "INR", symbol: "INR" },
+        SG: { locale: "en-SG", currency: "SGD", symbol: "SGD" },
+        US: { locale: "en-US", currency: "USD", symbol: "USD" },
+      };
+
+      const cfg = map[countryCode] || map.US;
+      const formatted = amount.toLocaleString(cfg.locale, {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      });
+
+      console.log(cfg.symbol, "cfg.symbol");
+
+      return cfg.symbol ? `${cfg.symbol}${formatted}` : formatted;
+    };
+
+    const countryCode = shopkeeperDetail.country || "IN";
+
+    // Delivery address one line (same as frontend)
+    const deliveryAddressLine = order.deliveryAddress
+      ? [
+          order.deliveryAddress.street,
+          order.deliveryAddress.city,
+          order.deliveryAddress.state,
+        ]
+          .filter(Boolean)
+          .join(", ")
+      : "";
+
     return new Promise((resolve, reject) => {
       try {
-        const PDFDocument = (PDFKit as any).default || PDFKit; // Fix for PDFKit import
+        const PDFDocument = (PDFKit as any).default || PDFKit;
         const doc = new PDFDocument({
-          size: [400, 650], // 58mm width in points, variable height
+          size: [164, 650],
           margins: { top: 10, bottom: 10, left: 10, right: 10 },
         });
 
@@ -126,93 +211,161 @@ export class OrdersService {
         doc.on("end", () => resolve(Buffer.concat(chunks)));
         doc.on("error", (error) => reject(error));
 
-        // Store/Business Header - Shopkeeper info first
+        // ========== SHOP INFO (header) ==========
         doc
-          .fontSize(32)
+          .fontSize(16)
           .font("Helvetica-Bold")
-          .text(shopkeeperDetail.shopName || "Shop Name", {
+          .text(shopkeeperDetail.shopName || "Shop Name", { align: "center" });
+
+        doc.fontSize(12).font("Helvetica");
+        if (shopkeeperDetail.whatsappNumber) {
+          doc.text(`Phone: ${shopkeeperDetail.whatsappNumber}`, {
             align: "center",
           });
-        doc.fontSize(28).font("Helvetica");
-        doc.text(`Phone: ${shopkeeperDetail.whatsappNumber || "N/A"}`, {
-          align: "center",
-        });
+        }
         if (shopkeeperDetail.businessEmail) {
           doc.text(`Email: ${shopkeeperDetail.businessEmail}`, {
             align: "center",
           });
         }
-        doc.text("--------------------------", {
+        if (shopkeeperDetail.GSTNumber) {
+          doc.text(`GSTIN: ${shopkeeperDetail.GSTNumber}`, { align: "center" });
+        }
+
+        doc.moveDown(0.5);
+        doc.fontSize(10).text("-------------------------------------------", {
           align: "center",
         });
 
-        // Order Information
-        doc
-          .fontSize(28)
-          .font("Helvetica-Bold")
-          .text(`Order #: ${order._id.toString().slice(-6).toUpperCase()}`);
-        doc
-          .font("Helvetica")
-          .text(`Date: ${new Date(order.createdAt).toLocaleDateString()}`);
-        doc.text(`Time: ${new Date(order.createdAt).toLocaleTimeString()}`);
-        doc.text("--------------------------");
+        // ========== ORDER INFO ==========
+        doc.moveDown(0.3);
+        doc.fontSize(12).font("Helvetica-Bold");
+        doc.text(
+          `Order #: ${order.orderId?.slice(-6)?.toUpperCase() || "N/A"}`,
+          { align: "left" }
+        );
+        doc.font("Helvetica");
+        doc.text(`Date: ${formatDate(order.createdAt)}`);
+        doc.text(`Time: ${formatTime(order.createdAt)}`);
 
-        // Customer Details
-        doc.font("Helvetica-Bold").text("Customer:");
-        doc.font("Helvetica").text(`Name: ${customerDetail.name}`);
-        doc.text(`Phone: ${customerDetail.whatsAppNumber}`);
+        doc.moveDown(0.5);
+        doc.fontSize(10).text("-------------------------------------------", {
+          align: "center",
+        });
+
+        // ========== CUSTOMER INFO ==========
+        doc.moveDown(0.3);
+        doc.font("Helvetica-Bold").fontSize(10).text("Customer:");
+        doc.font("Helvetica").fontSize(10);
+        doc.text(`Name: ${customerDetail.name}`);
+        if (customerDetail.whatsAppNumber) {
+          doc.text(`Phone: ${customerDetail.whatsAppNumber}`);
+        }
         if (customerDetail.email) {
           doc.text(`Email: ${customerDetail.email}`);
         }
-        doc.text("--------------------------");
 
-        // Items
-        doc.font("Helvetica-Bold").text("Items:");
+        // Pickup / Delivery (match frontend conditions)
+        if (order.orderType === "pickup") {
+          doc.text(`Order Type: pickup`);
+          if (order.pickupDate || order.pickupTime) {
+            const pickDate = order.pickupDate
+              ? formatDate(order.pickupDate)
+              : "";
+            doc.text(`PickUp: ${pickDate} ${order.pickupTime || ""}`.trim());
+          }
+        } else if (order.orderType === "delivery") {
+          doc.text(`Order Type: delivery`);
+          if (deliveryAddressLine) {
+            doc.text(`Delivery Address: ${deliveryAddressLine}`);
+          }
+        }
+
+        doc.moveDown(0.5);
+        doc.fontSize(10).text("-------------------------------------------", {
+          align: "center",
+        });
+
+        // ========== ITEMS ==========
+        doc.moveDown(0.3);
+        doc.font("Helvetica-Bold").fontSize(10).text("Items:");
+        doc.moveDown(0.2);
+
         let itemTotal = 0;
 
-        order.items.forEach((item) => {
+        order.items.forEach((item: any) => {
           const itemPrice = item.price * item.quantity;
           itemTotal += itemPrice;
 
-          doc.font("Helvetica").fontSize(28);
+          doc.font("Helvetica-Bold").fontSize(10);
+          doc.text(item.productName);
+
           if (item.subcategoryName) {
-            doc.text(
-              `${item.productName}: (${item.subcategoryName}, ${item.variantTitle})`
-            );
-          } else {
-            doc.text(`${item.productName}:`);
+            doc.font("Helvetica").fontSize(18);
+            const variantLabel = item.variantTitle
+              ? `, ${item.variantTitle}`
+              : "";
+            doc.text(`(${item.subcategoryName}${variantLabel})`);
           }
+
+          doc.font("Helvetica").fontSize(10);
           doc.text(
-            `${item.quantity} x $${item.price.toFixed(2)} = $${itemPrice.toFixed(2)}`
+            `${item.quantity} × ${formatPriceByCountry(
+              item.price,
+              countryCode
+            )} = ${formatPriceByCountry(itemPrice, countryCode)}`
           );
-          doc.text(""); // Add spacing
+          doc.moveDown(0.4);
         });
 
-        doc.text("--------------------------");
+        doc.moveDown(0.3);
+        doc.fontSize(10).text("-------------------------------------------", {
+          align: "center",
+        });
+        // ========== TOTALS (match frontend tax calc) ==========
+        doc.moveDown(0.3);
+        doc.font("Helvetica").fontSize(10).text("", { align: "right" });
 
-        // Total
-        doc.font("Helvetica-Bold").fontSize(26);
-        doc.text(
-          `Tax: $${((shopkeeperDetail.taxPercentage * itemTotal) / 100).toFixed(2)}`,
-          {
+        if (shopkeeperDetail.taxPercentage) {
+          const taxPercent = shopkeeperDetail.taxPercentage;
+          // same formula as frontend: tax from tax-inclusive total
+          const taxAmount =
+            (taxPercent * order.totalAmount) / (100 + taxPercent);
+
+          doc.text(`Tax: ${formatPriceByCountry(taxAmount, countryCode)}`, {
             align: "right",
-          }
+          });
+        }
+
+        doc.font("Helvetica-Bold");
+        doc.text(
+          `Total: ${formatPriceByCountry(order.totalAmount, countryCode)}`,
+          { align: "right" }
         );
-        doc.text(`Total: $${order.totalAmount.toFixed(2)}`, { align: "right" });
 
-        // Payment Infos
-        doc.fontSize(28).font("Helvetica");
+        doc.moveDown(0.5);
+        doc.fontSize(10).text("-------------------------------------------", {
+          align: "center",
+        });
+        // ========== PAYMENT INFO ==========
+        doc.moveDown(0.3);
+        doc.font("Helvetica").fontSize(10);
         doc.text(`Payment: Online`);
-        doc.text(`Status: Paid`);
+        doc.text(`Status: ${order.status?.toUpperCase() || "PAID"}`);
 
-        doc.text("--------------------------");
-        doc.fontSize(26).text("Thank you for your order!", { align: "center" });
+        doc.moveDown(0.5);
+        doc.fontSize(10).text("-------------------------------------------", {
+          align: "center",
+        });
+        // ========== FOOTER ==========
+        doc.moveDown(0.5);
+        doc.fontSize(10).font("Helvetica-Bold");
+        doc.text("Thank you for your order!", { align: "center" });
+        doc.font("Helvetica");
         doc.text("Visit us again!", { align: "center" });
 
-        // Spacing at the end
-        doc.text("");
-        doc.text("");
-        doc.text("");
+        doc.moveDown(1);
+        doc.text(" ", { align: "center" });
 
         doc.end();
       } catch (error) {
@@ -645,6 +798,11 @@ export class OrdersService {
     const shopkeeper = await this.shopkeeperModel.findOne({
       _id: order.shopkeeperId,
     });
+
+    const countryCode = shopkeeper.country || "IN";
+
+    console.log(countryCode, "country code");
+
     if (!shopkeeper) {
       throw new NotFoundException("Shopkeeper Not Found");
     }
@@ -736,7 +894,7 @@ export class OrdersService {
 
       printData.push({
         type: 0,
-        content: `Qty: ${item.quantity} x $${item.price.toFixed(2)} = $${(item.quantity * item.price).toFixed(2)}`,
+        content: `Qty: ${item.quantity} x ${this.formatPriceByCountry(item.price, countryCode)} = ${this.formatPriceByCountry(item.quantity * item.price, countryCode)}`,
         bold: 0,
         align: 0,
         format: 0,
@@ -755,7 +913,7 @@ export class OrdersService {
 
     printData.push({
       type: 0,
-      content: `TOTAL: $${order.totalAmount.toFixed(2)}`,
+      content: `TOTAL: ${this.formatPriceByCountry(order.totalAmount, countryCode)}`,
       bold: 1,
       align: 2, // right align
       format: 1, // double height

@@ -19,6 +19,7 @@ import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 import { diskStorage } from "multer";
 import { extname } from "path";
 import { FileInterceptor } from "@nestjs/platform-express";
+import { CreateRazorpayLinkedAccountDto } from "./dto/razorpay.dto";
 
 // DTO for OTP requests
 class RequestOTPDto {
@@ -90,6 +91,25 @@ export class ShopkeepersController {
     } catch (error) {
       throw error;
     }
+  }
+
+  @Post("razorpay/setup")
+  @UseGuards(AuthGuard("jwt"))
+  async setupRazorpay(
+    @Body() dto: CreateRazorpayLinkedAccountDto,
+    @Req() req: any
+  ) {
+    const shopkeeperId = req.user.sub;
+    return this.shopkeepersService.createRazorpayLinkedAccount(
+      shopkeeperId,
+      dto
+    );
+  }
+
+  @Get("razorpay/status/:accountId")
+  @UseGuards(AuthGuard("jwt"))
+  async getRazorpayStatus(@Param("accountId") accountId: string) {
+    return this.shopkeepersService.checkRazorpayAccountStatus(accountId);
   }
 
   @Post("resend-otp")

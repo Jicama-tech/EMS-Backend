@@ -69,7 +69,27 @@ export class UpdateShopkeeperDto {
   @IsOptional()
   shopClosedFromDate?: Date;
 
+  @IsString()
+  @IsOptional()
+  country?: string;
+
+  @IsString()
   @IsDate()
   @IsOptional()
   shopClosedToDate?: Date;
+
+  // ✅ NEW: GST Number (India)
+  @IsString()
+  @IsOptional()
+  GSTNumber?: string;
+
+  // ✅ NEW: UEN Number (Singapore)
+  @IsString()
+  @IsOptional()
+  UENNumber?: string;
+
+  // ✅ NEW: Document Verification Status
+  @IsBoolean()
+  @IsOptional()
+  hasDocVerification?: boolean;
 }

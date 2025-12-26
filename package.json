@@ -49,6 +49,7 @@
     "puppeteer": "^24.26.1",
     "qrcode": "^1.5.4",
     "qrcode-reader": "^1.0.4",
+    "razorpay": "^2.9.6",
     "reflect-metadata": "^0.1.13",
     "rxjs": "^7.8.1",
     "slugify": "^1.6.6",
