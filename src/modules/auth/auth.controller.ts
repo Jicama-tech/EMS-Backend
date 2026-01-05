@@ -61,7 +61,6 @@ export class AuthController {
   @UseGuards(AuthGuard("google"))
   async googleAuthRedirect(@Req() req: Request, @Res() res: Response) {
     try {
-      console.log("Claeeddddddddd");
       const userFromGoogle = req.user as any;
       if (!userFromGoogle) {
         return res.redirect("https://eventsh.com/login?error=auth_failed");
@@ -193,7 +192,7 @@ export class AuthController {
       const email = req.user.email;
       const name = req.user.name;
 
-      return this.rolesService.checkRoleAvailability(email, name, body.role);
+      return this.rolesService.checkRoleAvailability1(email, name, body.role);
     } catch (error) {
       console.error("checkRoleFromAuth error:", error);
       throw error;

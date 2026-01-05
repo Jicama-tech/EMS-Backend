@@ -65,6 +65,53 @@ export class RoleService {
     };
   }
 
+  async checkRoleAvailability1(
+    email: string,
+    name: string,
+    role: "organizer" | "shopkeeper"
+  ) {
+    if (role === "organizer") {
+      const organizer = await this.organizerService.findByEmail(email);
+      if (organizer) {
+        return {
+          found: true,
+          message: "Organizer found. Please use password login.",
+          data: { email, role: "organizer" },
+        };
+      }
+    } else if (role === "shopkeeper") {
+      const shopkeeper = await this.shopkeeperService.getByEmail(email);
+      if (shopkeeper) {
+        // Shopkeeper found - send OTP for login
+        try {
+          return {
+            found: true,
+            message: "Shopkeeper found. OTP sent to your registered email.",
+            data: {
+              email,
+              role: "shopkeeper",
+            },
+          };
+        } catch (error) {
+          return {
+            found: true,
+            message:
+              "Shopkeeper found but failed to send OTP. Please try again.",
+            error: error.message,
+            data: { email, role: "shopkeeper" },
+          };
+        }
+      }
+    }
+
+    // User not found - proceed with registration
+    return {
+      found: false,
+      message: `${role} not found. Please complete registration.`,
+      user: { name, email, role },
+    };
+  }
+
   // Register the new role and send emails
   async registerRole(
     name: string,

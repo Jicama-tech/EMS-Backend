@@ -46,7 +46,7 @@ export class CreateShopkeeperDto {
   businessCategory: string;
 
   @IsString()
-  @IsNotEmpty()
+  @IsOptional()
   GSTNumber: string;
 
   // ← NEW FIELDS (Singapore/Country support)

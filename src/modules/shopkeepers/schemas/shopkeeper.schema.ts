@@ -92,7 +92,7 @@ export class Shopkeeper {
   whatsappNumber: string;
 
   @Prop()
-  GSTNumber: string;
+  GSTNumber?: string;
 
   @Prop()
   UENNumber: string;
