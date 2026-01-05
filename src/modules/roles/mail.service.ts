@@ -299,7 +299,6 @@ export class MailService {
 
   async sendMail(options: { to: string; subject: string; html: string }) {
     try {
-      console.log("Vansh Sharma");
       await this.transporter.sendMail({
         from: `"EventSH" <${process.env.SMTP_USER}>`,
         to: options.to,

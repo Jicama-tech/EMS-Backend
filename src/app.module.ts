@@ -19,6 +19,7 @@ import { TicketsModule } from "./modules/tickets/tickets.module";
 import { StallsModule } from "./modules/stalls/stalls.module";
 import { PlansModule } from "./modules/plans/plans.module";
 import { EnquiryModule } from "./modules/enquiry/enquiry.module";
+import { ShopkeeperAnalyticsModule } from "./modules/shopkeepers/shopkeeper-analytics.module";
 
 @Module({
   imports: [
@@ -44,6 +45,7 @@ import { EnquiryModule } from "./modules/enquiry/enquiry.module";
     StallsModule,
     PlansModule,
     EnquiryModule,
+    ShopkeeperAnalyticsModule,
   ],
 })
 export class AppModule {}

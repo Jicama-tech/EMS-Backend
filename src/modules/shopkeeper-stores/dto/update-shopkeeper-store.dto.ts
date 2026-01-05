@@ -16,6 +16,13 @@ export class UpdateShopkeeperStoreDto {
       address?: string;
       hours?: string;
       website?: string;
+      showInstagram?: boolean;
+      showFacebook?: boolean;
+      showTwitter?: boolean;
+      showTiktok?: boolean;
+      facebookLink?: string;
+      twitterLink?: string;
+      tiktokLink?: string;
       instagramLink?: string;
     };
   };
@@ -29,7 +36,21 @@ export class UpdateShopkeeperStoreDto {
     primaryColor?: string;
     secondaryColor?: string;
     fontFamily?: string;
-    layout?: string;
+    layout?: {
+      header?: string;
+      visibleAdvertismentBar?: boolean;
+      advertiseText?: string;
+      adBarBgcolor?: string;
+      adBarTextColor?: string;
+      allProducts?: string;
+      visibleFeaturedProducts?: boolean;
+      visibleQuickPicks?: boolean;
+      featuredProducts?: string;
+      quickPicks?: string;
+      banner?: string;
+      footer?: string;
+    };
+    heroBannerImage?: string;
     bannerImage?: string;
     showBanner?: boolean;
     bannerHeight?: string;

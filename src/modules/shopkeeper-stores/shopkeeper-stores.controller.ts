@@ -10,6 +10,7 @@ import {
   Req,
   UploadedFile,
   UseInterceptors,
+  UploadedFiles,
 } from "@nestjs/common";
 import { ShopkeeperStoresService } from "./shopkeeper-stores.service";
 import { CreateShopkeeperStoreDto } from "./dto/create-shopkeeper-store.dto";
@@ -18,7 +19,10 @@ import { AuthGuard } from "@nestjs/passport";
 import { UpdateShopkeeperStoreDto } from "./dto/update-shopkeeper-store.dto";
 import { diskStorage } from "multer";
 import * as path from "path";
-import { FileInterceptor } from "@nestjs/platform-express";
+import {
+  FileFieldsInterceptor,
+  FileInterceptor,
+} from "@nestjs/platform-express";
 import { v4 as uuidv4 } from "uuid";
 import * as fs from "fs";
 
@@ -101,28 +105,38 @@ export class ShopkeeperStoresController {
   @Patch("update-store-settings")
   @UseGuards(AuthGuard("jwt"))
   @UseInterceptors(
-    FileInterceptor("bannerImage", {
-      storage,
-      fileFilter: (req, file, cb) => {
-        if (file.mimetype.startsWith("image/")) {
-          cb(null, true);
-        } else {
-          cb(new Error("Only image files allowed"), false);
-        }
-      },
-      limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
-    })
+    FileFieldsInterceptor(
+      [
+        { name: "bannerImage", maxCount: 1 },
+        { name: "heroBannerImage", maxCount: 1 },
+      ],
+      {
+        storage,
+        fileFilter: (req, file, cb) => {
+          if (file.mimetype.startsWith("image/")) {
+            cb(null, true);
+          } else {
+            cb(new Error("Only image files allowed"), false);
+          }
+        },
+        limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+      }
+    )
   )
   async update(
     @Req() req: any,
-    @UploadedFile() bannerFile: Express.Multer.File,
+    @UploadedFiles()
+    files: {
+      bannerImage?: Express.Multer.File[];
+      heroBannerImage?: Express.Multer.File[];
+    },
     @Body() updateShopkeeperStoreDto: UpdateShopkeeperStoreDto
   ) {
     try {
       const id = req.user.userId;
 
       console.log("Received body:", updateShopkeeperStoreDto);
-      console.log("Received file:", bannerFile);
+      console.log("Received files:", files);
 
       // Parse JSON string fields from multipart body
       Object.keys(updateShopkeeperStoreDto).forEach((key) => {
@@ -137,26 +151,26 @@ export class ShopkeeperStoresController {
         }
       });
 
-      // Prepare banner image path if file was uploaded
+      // Handle bannerImage (0 or 1 file)
       let bannerImagePath: string | undefined;
-      if (bannerFile) {
-        // Get the protocol (http or https)
-        const protocol = req.protocol;
-
-        // Get the host (includes port if specified)
-        const host = req.get("host");
-
-        // Construct the full URL
-        bannerImagePath = `/uploads/banners/${bannerFile.filename}`;
-
-        console.log("Full banner image URL:", bannerImagePath);
+      if (files.bannerImage && files.bannerImage.length > 0) {
+        bannerImagePath = `/uploads/banners/${files.bannerImage[0].filename}`;
+        console.log("Banner image path:", bannerImagePath);
       }
 
-      // Call service with the parsed DTO and banner image path
+      // Handle heroBannerImage (0 or 1 file)
+      let heroBannerImagePath: string | undefined;
+      if (files.heroBannerImage && files.heroBannerImage.length > 0) {
+        heroBannerImagePath = `/uploads/banners/${files.heroBannerImage[0].filename}`;
+        console.log("Hero banner image path:", heroBannerImagePath);
+      }
+
+      // Call service with parsed DTO and optional file paths
       return await this.shopkeeperStoresService.update(
         id,
         updateShopkeeperStoreDto,
-        bannerImagePath
+        bannerImagePath, // undefined if no file
+        heroBannerImagePath // undefined if no file
       );
     } catch (error) {
       console.log("Update error:", error);

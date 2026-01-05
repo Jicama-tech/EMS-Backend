@@ -536,8 +536,6 @@ export class OrganizersService {
       .lean()
       .exec();
 
-    console.log(updated, "Vansh Sharma");
-
     if (!updated) {
       throw new NotFoundException("Organizer not found");
     }

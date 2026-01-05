@@ -50,7 +50,6 @@ export class ShopkeepersController {
 
   @Post()
   async create(@Body() body: CreateShopkeeperDto) {
-    console.log(body, "Vansh Sharma");
     return this.shopkeepersService.create(body);
   }
 
@@ -86,7 +85,6 @@ export class ShopkeepersController {
   @Post("verify-otp")
   async verifyOTP(@Body() body: any) {
     try {
-      console.log(body, "vansh Sharma");
       return await this.shopkeepersService.verifyOTP(body.email, body.otp);
     } catch (error) {
       throw error;
@@ -135,7 +133,6 @@ export class ShopkeepersController {
   @UseGuards(AuthGuard("jwt"))
   async getProfile(@Req() req: any) {
     try {
-      console.log(req.user.userId, "Vansh Sharmasuodvuisdbvhsdbv");
       const shopkeeperId = req.user.sub;
       return await this.shopkeepersService.get(shopkeeperId);
     } catch (error) {
@@ -146,7 +143,6 @@ export class ShopkeepersController {
   @Post("register")
   async register(@Body() body: CreateShopkeeperDto) {
     try {
-      console.log(body, "Vansh Sharma");
       return await this.shopkeepersService.register(body);
     } catch (error) {
       throw error;
@@ -187,8 +183,6 @@ export class ShopkeepersController {
     const paymentQrPublicUrl = paymentURL?.filename
       ? `/uploads/shopkeeperPayment/${paymentURL.filename}`
       : null;
-
-    console.log(paymentQrPublicUrl, "Vansh Sharma");
 
     return this.shopkeepersService.updateProfile(id, body, paymentQrPublicUrl);
   }

@@ -16,6 +16,14 @@ class ContactInfoDto {
   @IsOptional() @IsString() address?: string;
   @IsOptional() @IsString() hours?: string;
   @IsOptional() @IsString() website?: string;
+  @IsOptional() @IsString() instagramLink?: string;
+  @IsOptional() @IsString() facebookLink?: string;
+  @IsOptional() @IsString() twitterLink?: string;
+  @IsOptional() @IsString() tiktokLink?: string;
+  @IsOptional() @IsBoolean() showInstagram?: boolean;
+  @IsOptional() @IsBoolean() showFacebook?: boolean;
+  @IsOptional() @IsBoolean() showTwitter?: boolean;
+  @IsOptional() @IsBoolean() showTiktok?: boolean;
 }
 
 class GeneralSettingsDto {
@@ -27,13 +35,29 @@ class GeneralSettingsDto {
   @ValidateNested() @Type(() => ContactInfoDto) contactInfo: ContactInfoDto;
 }
 
+class LayoutSettingsDto {
+  @IsString() header: string;
+  @IsString() allProducts: string;
+  @IsBoolean() visibleFeaturedProducts: boolean;
+  @IsBoolean() visibleAdvertismentBar?: boolean;
+  @IsString() advertiseText?: string;
+  @IsString() adBarBgcolor?: string;
+  @IsString() adBarTextColor?: string;
+  @IsBoolean() visibleQuickPicks: boolean;
+  @IsString() featuredProducts: string;
+  @IsString() quickPicks: string;
+  @IsString() banner: string;
+  @IsString() footer: string;
+}
+
 class DesignSettingsDto {
   @IsString() theme: string;
   @IsString() primaryColor: string;
   @IsString() secondaryColor: string;
   @IsString() fontFamily: string;
-  @IsString() layout: string;
+  @IsString() layout: LayoutSettingsDto;
   @IsOptional() @IsString() bannerImage?: string;
+  @IsOptional() @IsString() heroBannerImage?: string;
   @IsBoolean() showBanner: boolean;
   @IsString() bannerHeight: string;
 }

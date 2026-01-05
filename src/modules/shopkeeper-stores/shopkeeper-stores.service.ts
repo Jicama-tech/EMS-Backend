@@ -33,6 +33,27 @@ export class ShopkeeperStoresService {
               hours: createShopkeeperStoreDto.general.contactInfo.hours ?? "",
               website:
                 createShopkeeperStoreDto.general.contactInfo.website ?? "",
+              instagramLink:
+                createShopkeeperStoreDto.general.contactInfo.instagramLink ??
+                "",
+              facebookLink:
+                createShopkeeperStoreDto.general.contactInfo.facebookLink ?? "",
+              twitterLink:
+                createShopkeeperStoreDto.general.contactInfo.twitterLink ?? "",
+              tiktokLink:
+                createShopkeeperStoreDto.general.contactInfo.tiktokLink ?? "",
+              showInstagram:
+                createShopkeeperStoreDto.general.contactInfo.showInstagram ??
+                false,
+              showFacebook:
+                createShopkeeperStoreDto.general.contactInfo.showFacebook ??
+                false,
+              showTwitter:
+                createShopkeeperStoreDto.general.contactInfo.showTwitter ??
+                false,
+              showTiktok:
+                createShopkeeperStoreDto.general.contactInfo.showTiktok ??
+                false,
             },
           },
           design: {
@@ -161,7 +182,8 @@ export class ShopkeeperStoresService {
   async update(
     shopkeeperId: string,
     updateShopkeeperDto: UpdateShopkeeperStoreDto,
-    bannerImagePath?: string
+    bannerImagePath?: string,
+    heroBannerImagePath?: string
   ) {
     try {
       const existingStore = await this.shopkeeperStoreModel
@@ -219,6 +241,27 @@ export class ShopkeeperStoresService {
             instagramLink:
               updateShopkeeperDto.general.contactInfo?.instagramLink ??
               existingStore.settings.general.contactInfo.instagramLink,
+            facebookLink:
+              updateShopkeeperDto.general.contactInfo?.facebookLink ??
+              existingStore.settings.general.contactInfo.facebookLink,
+            twitterLink:
+              updateShopkeeperDto.general.contactInfo?.twitterLink ??
+              existingStore.settings.general.contactInfo.twitterLink,
+            tiktokLink:
+              updateShopkeeperDto.general.contactInfo?.tiktokLink ??
+              existingStore.settings.general.contactInfo.tiktokLink,
+            showInstagram:
+              updateShopkeeperDto.general.contactInfo?.showInstagram ??
+              existingStore.settings.general.contactInfo.showInstagram,
+            showFacebook:
+              updateShopkeeperDto.general.contactInfo?.showFacebook ??
+              existingStore.settings.general.contactInfo.showFacebook,
+            showTwitter:
+              updateShopkeeperDto.general.contactInfo?.showTwitter ??
+              existingStore.settings.general.contactInfo.showTwitter,
+            showTiktok:
+              updateShopkeeperDto.general.contactInfo?.showTiktok ??
+              existingStore.settings.general.contactInfo.showTiktok,
           },
         };
       }
@@ -241,6 +284,10 @@ export class ShopkeeperStoresService {
           layout:
             updateShopkeeperDto.design.layout ??
             existingStore.settings.design.layout,
+          heroBannerImage:
+            heroBannerImagePath ??
+            updateShopkeeperDto.design.heroBannerImage ??
+            existingStore.settings.design.heroBannerImage,
           bannerImage:
             bannerImagePath ??
             updateShopkeeperDto.design.bannerImage ??

@@ -9,7 +9,14 @@ export interface ContactInfo {
   address?: string;
   hours?: string;
   website?: string;
+  showInstagram: boolean;
+  showFacebook: boolean;
+  showTwitter: boolean;
+  showTiktok: boolean;
   instagramLink: string;
+  facebookLink: string;
+  twitterLink: string;
+  tiktokLink: string;
 }
 
 export interface StorefrontSettings {
@@ -26,7 +33,21 @@ export interface StorefrontSettings {
     primaryColor: string;
     secondaryColor: string;
     fontFamily: string;
-    layout: string;
+    layout: {
+      header: string;
+      allProducts: string;
+      visibleFeaturedProducts: boolean;
+      visibleAdvertismentBar: boolean;
+      advertiseText: string;
+      adBarBgcolor: string;
+      adBarTextColor: string;
+      visibleQuickPicks: boolean;
+      featuredProducts: string;
+      quickPicks: string;
+      banner: string;
+      footer: string;
+    };
+    heroBannerImage?: string;
     bannerImage?: string;
     showBanner: boolean;
     bannerHeight: string;
@@ -84,7 +105,14 @@ export class ShopfrontStore {
           address: "",
           hours: "",
           website: "",
+          showInstagram: false,
+          showFacebook: false,
+          showTwitter: false,
+          showTiktok: false,
           instagramLink: "",
+          facebookLink: "",
+          twitterLink: "",
+          tiktokLink: "",
         },
       },
       design: {
@@ -92,7 +120,19 @@ export class ShopfrontStore {
         primaryColor: "#6366f1",
         secondaryColor: "#8b5cf6",
         fontFamily: "Inter",
-        layout: "modern",
+        layout: {
+          header: "modern",
+          allProducts: "single",
+          visibleFeaturedProducts: false,
+          visibleAdvertismentBar: false,
+          advertismentBar: "modern",
+          advertiseText: "Welcome to Advertisement Bar",
+          visibleQuickPicks: false,
+          featuredProducts: "modern",
+          quickPicks: "modern",
+          banner: "modern",
+          footer: "modern",
+        },
         bannerImage: "",
         showBanner: true,
         bannerHeight: "large",
