@@ -64,8 +64,8 @@ export class AuthController {
       console.log("Claeeddddddddd");
       const userFromGoogle = req.user as any;
       if (!userFromGoogle) {
-        // return res.redirect("https://eventsh.com/login?error=auth_failed");
-        return res.redirect("http://localhost:8080/login?error=auth_failed");
+        return res.redirect("https://eventsh.com/login?error=auth_failed");
+        // return res.redirect("http://localhost:8080/login?error=auth_failed");
       }
 
       // 1. Check if the user already exists in your database
@@ -83,8 +83,6 @@ export class AuthController {
         user = await this.usersService.create(createUserDto);
       }
 
-      console.log(userFromGoogle, user, "userFromGoogle");
-
       // 3. Generate a JWT token
       const payload = {
         name: user.name,
@@ -99,17 +97,16 @@ export class AuthController {
 
       // 4. Redirect to the frontend with the token
       // This is the correct line to use!
-      // return res.redirect(`https://eventsh.com/user-dashboard?token=${token}`);
+      return res.redirect(`https://eventsh.com/user-dashboard?token=${token}`);
 
-      return res.redirect(
-        `http://localhost:8080/user-dashboard?token=${token}`
-      );
+      // return res.redirect(
+      //   `http://localhost:8080/user-dashboard?token=${token}`
+      // );
       // Remove the res.json line
       // res.json({ message: "User logged in successfully", token });
     } catch (error) {
-      console.error("Auth redirect error:", error);
-      // return res.redirect("https://eventsh.com/login?error=auth_failed");
-      return res.redirect("http://localhost:8080/login?error=auth_failed");
+      return res.redirect("https://eventsh.com/login?error=auth_failed");
+      // return res.redirect("http://localhost:8080/login?error=auth_failed");
     }
   }
 
@@ -125,13 +122,13 @@ export class AuthController {
   @UseGuards(AuthGuard("google-shopkeeper"))
   async googleShopkeeperRedirect(@Req() req: Request, @Res() res: Response) {
     try {
-      console.log("🟢 Shopkeeper Google Redirect Called");
       const userFromGoogle = req.user as any;
 
       if (!userFromGoogle) {
-        return res.redirect(
-          "http://localhost:8080/eshop-login?error=auth_failed"
-        );
+        return res.redirect("https://eventsh.com/login?error=auth_failed");
+        // return res.redirect(
+        //   "http://localhost:8080/eshop-login?error=auth_failed"
+        // );
       }
 
       // Check if user exists, create if not
@@ -162,22 +159,27 @@ export class AuthController {
         expiresIn: "1h",
       });
 
-      console.log("🟢 Token generated, redirecting to eshop-login");
-
       // ✅ IMPORTANT: redirect to eshop-login with token & email
       // Frontend useEffect will detect token in URL params and call check-role API
       return res.redirect(
-        `http://localhost:8080/eshop-login?token=${encodeURIComponent(
+        `https://eventsh.com/eshop-login?token=${encodeURIComponent(
           token
         )}&email=${encodeURIComponent(user.email)}&name=${encodeURIComponent(
           user.name
         )}`
       );
+      // return res.redirect(
+      //   `http://localhost:8080/eshop-login?token=${encodeURIComponent(
+      //     token
+      //   )}&email=${encodeURIComponent(user.email)}&name=${encodeURIComponent(
+      //     user.name
+      //   )}`
+      // );
     } catch (error) {
-      console.error("❌ Shopkeeper auth redirect error:", error);
-      return res.redirect(
-        "http://localhost:8080/eshop-login?error=auth_failed"
-      );
+      return res.redirect("https://eventsh.com/login?error=auth_failed");
+      // return res.redirect(
+      //   "http://localhost:8080/eshop-login?error=auth_failed"
+      // );
     }
   }
 
