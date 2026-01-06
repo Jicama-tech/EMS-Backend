@@ -202,7 +202,7 @@ export class OrdersService {
       try {
         const PDFDocument = (PDFKit as any).default || PDFKit;
         const doc = new PDFDocument({
-          size: [164, 650],
+          size: [227, 650],
           margins: { top: 10, bottom: 10, left: 10, right: 10 },
         });
 
