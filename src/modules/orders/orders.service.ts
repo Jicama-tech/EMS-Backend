@@ -169,9 +169,9 @@ export class OrdersService {
         string,
         { locale: string; currency: string; symbol?: string }
       > = {
-        IN: { locale: "en-IN", currency: "INR", symbol: "INR" },
-        SG: { locale: "en-SG", currency: "SGD", symbol: "SGD" },
-        US: { locale: "en-US", currency: "USD", symbol: "USD" },
+        IN: { locale: "en-IN", currency: "INR", symbol: "₹" },
+        SG: { locale: "en-SG", currency: "SGD", symbol: "SG$" },
+        US: { locale: "en-US", currency: "USD", symbol: "US$" },
       };
 
       const cfg = map[countryCode] || map.US;
@@ -213,11 +213,11 @@ export class OrdersService {
 
         // ========== SHOP INFO (header) ==========
         doc
-          .fontSize(16)
+          .fontSize(18)
           .font("Helvetica-Bold")
           .text(shopkeeperDetail.shopName || "Shop Name", { align: "center" });
 
-        doc.fontSize(12).font("Helvetica");
+        doc.fontSize(14).font("Helvetica");
         if (shopkeeperDetail.whatsappNumber) {
           doc.text(`Phone: ${shopkeeperDetail.whatsappNumber}`, {
             align: "center",
@@ -233,13 +233,15 @@ export class OrdersService {
         }
 
         doc.moveDown(0.5);
-        doc.fontSize(10).text("-------------------------------------------", {
-          align: "center",
-        });
+        doc
+          .fontSize(10)
+          .text("-----------------------------------------------------", {
+            align: "center",
+          });
 
         // ========== ORDER INFO ==========
         doc.moveDown(0.3);
-        doc.fontSize(12).font("Helvetica-Bold");
+        doc.fontSize(14).font("Helvetica-Bold");
         doc.text(
           `Order #: ${order.orderId?.slice(-6)?.toUpperCase() || "N/A"}`,
           { align: "left" }
@@ -249,14 +251,16 @@ export class OrdersService {
         doc.text(`Time: ${formatTime(order.createdAt)}`);
 
         doc.moveDown(0.5);
-        doc.fontSize(10).text("-------------------------------------------", {
-          align: "center",
-        });
+        doc
+          .fontSize(12)
+          .text("-----------------------------------------------------", {
+            align: "center",
+          });
 
         // ========== CUSTOMER INFO ==========
         doc.moveDown(0.3);
-        doc.font("Helvetica-Bold").fontSize(10).text("Customer:");
-        doc.font("Helvetica").fontSize(10);
+        doc.font("Helvetica-Bold").fontSize(12).text("Customer:");
+        doc.font("Helvetica").fontSize(12);
         doc.text(`Name: ${customerDetail.name}`);
         if (customerDetail.whatsAppNumber) {
           doc.text(`Phone: ${customerDetail.whatsAppNumber}`);
@@ -282,13 +286,15 @@ export class OrdersService {
         }
 
         doc.moveDown(0.5);
-        doc.fontSize(10).text("-------------------------------------------", {
-          align: "center",
-        });
+        doc
+          .fontSize(12)
+          .text("-----------------------------------------------------", {
+            align: "center",
+          });
 
         // ========== ITEMS ==========
         doc.moveDown(0.3);
-        doc.font("Helvetica-Bold").fontSize(10).text("Items:");
+        doc.font("Helvetica-Bold").fontSize(14).text("Items:");
         doc.moveDown(0.2);
 
         let itemTotal = 0;
@@ -297,18 +303,18 @@ export class OrdersService {
           const itemPrice = item.price * item.quantity;
           itemTotal += itemPrice;
 
-          doc.font("Helvetica-Bold").fontSize(10);
+          doc.font("Helvetica-Bold").fontSize(12);
           doc.text(item.productName);
 
           if (item.subcategoryName) {
-            doc.font("Helvetica").fontSize(18);
+            doc.font("Helvetica").fontSize(20);
             const variantLabel = item.variantTitle
               ? `, ${item.variantTitle}`
               : "";
             doc.text(`(${item.subcategoryName}${variantLabel})`);
           }
 
-          doc.font("Helvetica").fontSize(10);
+          doc.font("Helvetica").fontSize(12);
           doc.text(
             `${item.quantity} × ${formatPriceByCountry(
               item.price,
@@ -319,12 +325,14 @@ export class OrdersService {
         });
 
         doc.moveDown(0.3);
-        doc.fontSize(10).text("-------------------------------------------", {
-          align: "center",
-        });
+        doc
+          .fontSize(12)
+          .text("-----------------------------------------------------", {
+            align: "center",
+          });
         // ========== TOTALS (match frontend tax calc) ==========
         doc.moveDown(0.3);
-        doc.font("Helvetica").fontSize(10).text("", { align: "right" });
+        doc.font("Helvetica").fontSize(12).text("", { align: "right" });
 
         if (shopkeeperDetail.taxPercentage) {
           const taxPercent = shopkeeperDetail.taxPercentage;
@@ -344,22 +352,26 @@ export class OrdersService {
         );
 
         doc.moveDown(0.5);
-        doc.fontSize(10).text("-------------------------------------------", {
-          align: "center",
-        });
+        doc
+          .fontSize(12)
+          .text("-----------------------------------------------------", {
+            align: "center",
+          });
         // ========== PAYMENT INFO ==========
         doc.moveDown(0.3);
-        doc.font("Helvetica").fontSize(10);
+        doc.font("Helvetica").fontSize(12);
         doc.text(`Payment: Online`);
         doc.text(`Status: ${order.status?.toUpperCase() || "PAID"}`);
 
         doc.moveDown(0.5);
-        doc.fontSize(10).text("-------------------------------------------", {
-          align: "center",
-        });
+        doc
+          .fontSize(12)
+          .text("-----------------------------------------------------", {
+            align: "center",
+          });
         // ========== FOOTER ==========
         doc.moveDown(0.5);
-        doc.fontSize(10).font("Helvetica-Bold");
+        doc.fontSize(12).font("Helvetica-Bold");
         doc.text("Thank you for your order!", { align: "center" });
         doc.font("Helvetica");
         doc.text("Visit us again!", { align: "center" });
