@@ -3,3 +3,4 @@ dist
 .env
 uploads
 npm-debug.log
+whatsapp_auth

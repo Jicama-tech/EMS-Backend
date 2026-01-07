@@ -1,21 +1,58 @@
 import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
-import { Document, Types } from "mongoose";
+import { Document } from "mongoose";
 
 export type ProductDocument = Product & Document;
 
-// Interface for ProductVariant embedded document (no separate schema class)
-export interface ProductVariant {
+class Variant {
+  @Prop({ required: true })
   id: number;
+
+  @Prop({ required: true })
   title: string;
-  price: string;
-  compareAtPrice?: string;
+
+  @Prop({ required: true })
+  price: number;
+
+  @Prop()
+  compareAtPrice?: number;
+
+  @Prop({ required: true })
   sku: string;
+
+  @Prop()
   barcode?: string;
+
+  @Prop({ default: 0 })
   inventory: number;
-  options?: Record<string, any>;
+
+  @Prop({ default: 10 })
+  lowstockThreshold: number;
+
+  @Prop({ default: true })
+  trackQuantity: boolean;
+
+  @Prop({ type: Object, default: {} })
+  options: Record<string, any>;
 }
 
-@Schema({ timestamps: true, collection: "products" })
+class Subcategory {
+  @Prop({ required: true })
+  id: number;
+
+  @Prop({ required: true })
+  name: string;
+
+  @Prop()
+  description?: string;
+
+  @Prop({ default: 0 })
+  basePrice: number;
+
+  @Prop({ type: [Variant], default: [] })
+  variants: Variant[];
+}
+
+@Schema({ timestamps: true })
 export class Product {
   @Prop({ required: true })
   name: string;
@@ -23,14 +60,8 @@ export class Product {
   @Prop()
   description?: string;
 
-  @Prop({ required: true, type: Number })
+  @Prop({ required: true })
   price: number;
-
-  @Prop({ type: Number })
-  compareAtPrice?: number;
-
-  @Prop({ required: true, type: Number })
-  cost: number;
 
   @Prop({ required: true })
   sku: string;
@@ -41,77 +72,48 @@ export class Product {
   @Prop({ required: true })
   category: string;
 
+  @Prop({ enum: ["active", "draft", "archived"], default: "active" })
+  status: string;
+
+  @Prop({
+    type: [String],
+    default: [],
+    validate: [arrayLimit, "Maximum 3 images allowed"],
+  })
+  images: string[];
+
   @Prop({ type: [String], default: [] })
   tags: string[];
 
-  @Prop({ type: [String], default: [] })
-  images: string[];
+  @Prop({ type: [Subcategory], default: [] })
+  subcategories: Subcategory[];
 
-  @Prop({
-    type: {
-      quantity: { type: Number, required: true },
-      trackQuantity: { type: Boolean, default: true, required: true },
-      allowBackorder: { type: Boolean, default: false, required: true },
-      lowStockThreshold: { type: Number, default: 10, required: true },
-    },
-    required: true,
-  })
-  inventory: {
-    quantity: number;
-    trackQuantity: boolean;
-    allowBackorder: boolean;
-    lowStockThreshold: number;
-  };
-
-  @Prop({
-    type: [
-      {
-        id: { type: Number, required: true },
-        title: { type: String, required: true },
-        price: { type: Number, required: true },
-        compareAtPrice: { type: Number },
-        sku: { type: String, required: true },
-        barcode: { type: String },
-        inventory: { type: Number, required: true },
-        options: { type: Object }, // Flexible object for variant options
-      },
-    ],
-    default: [],
-  })
-  variants?: ProductVariant[];
-
-  @Prop({ enum: ["active", "draft", "archived"], default: "active" })
-  status: "active" | "draft" | "archived";
-
-  @Prop({ type: Number })
+  @Prop()
   weight?: number;
 
-  @Prop({
-    type: {
-      length: { type: Number },
-      width: { type: Number },
-      height: { type: Number },
-    },
-  })
+  @Prop({ type: Object })
   dimensions?: {
-    length?: number;
-    width?: number;
-    height?: number;
+    length: number;
+    width: number;
+    height: number;
   };
 
-  @Prop({
-    type: {
-      title: { type: String, maxlength: 60 },
-      description: { type: String, maxlength: 160 },
-    },
-  })
-  seo?: {
-    title?: string;
-    description?: string;
-  };
+  // Product-level inventory management (when no subcategories/variants)
+  @Prop({ default: 0 })
+  inventory?: number;
 
-  @Prop({ type: Types.ObjectId, ref: "Shopkeeper", required: true })
-  shopkeeperId: Types.ObjectId;
+  @Prop({ default: 10 })
+  lowstockThreshold?: number;
+
+  @Prop({ default: true })
+  trackQuantity?: boolean;
+
+  @Prop({ required: true })
+  shopkeeperId: string;
+}
+
+function arrayLimit(val: string[]) {
+  return val.length <= 3;
 }
 
 export const ProductSchema = SchemaFactory.createForClass(Product);

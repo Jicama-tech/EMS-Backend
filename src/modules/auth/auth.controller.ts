@@ -18,13 +18,16 @@ import { CreateUserDto } from "../users/dto/create-users.dto";
 import { UsersService } from "../users/users.service";
 import { JwtService } from "@nestjs/jwt";
 import { AuthGuard } from "@nestjs/passport";
+import { RoleService } from "../roles/roles.service";
+import { JwtAuthGuard } from "./guards/jwt-auth.guard";
 
 @Controller("auth")
 export class AuthController {
   constructor(
     private authService: AuthService,
     private readonly usersService: UsersService,
-    private readonly jwtService: JwtService
+    private readonly jwtService: JwtService,
+    private readonly rolesService: RoleService
   ) {}
 
   @Post("login")
@@ -58,10 +61,10 @@ export class AuthController {
   @UseGuards(AuthGuard("google"))
   async googleAuthRedirect(@Req() req: Request, @Res() res: Response) {
     try {
-      console.log("Claeeddddddddd");
       const userFromGoogle = req.user as any;
       if (!userFromGoogle) {
         return res.redirect("https://eventsh.com/login?error=auth_failed");
+        // return res.redirect("http://localhost:8080/login?error=auth_failed");
       }
 
       // 1. Check if the user already exists in your database
@@ -79,8 +82,6 @@ export class AuthController {
         user = await this.usersService.create(createUserDto);
       }
 
-      console.log(userFromGoogle, user, "userFromGoogle");
-
       // 3. Generate a JWT token
       const payload = {
         name: user.name,
@@ -96,11 +97,105 @@ export class AuthController {
       // 4. Redirect to the frontend with the token
       // This is the correct line to use!
       return res.redirect(`https://eventsh.com/user-dashboard?token=${token}`);
+
+      // return res.redirect(
+      //   `http://localhost:8080/user-dashboard?token=${token}`
+      // );
       // Remove the res.json line
       // res.json({ message: "User logged in successfully", token });
     } catch (error) {
-      console.error("Auth redirect error:", error);
       return res.redirect("https://eventsh.com/login?error=auth_failed");
+      // return res.redirect("http://localhost:8080/login?error=auth_failed");
+    }
+  }
+
+  @Get("google-shopkeeper")
+  @UseGuards(AuthGuard("google-shopkeeper"))
+  async googleShopkeeperAuth() {
+    console.log("::::Vansh Sharma");
+    // This is the initial endpoint to start the Google auth flow.
+  }
+
+  // 1) Start Google flow for SHOPKEEPER
+  @Get("google-shopkeeper/redirect")
+  @UseGuards(AuthGuard("google-shopkeeper"))
+  async googleShopkeeperRedirect(@Req() req: Request, @Res() res: Response) {
+    try {
+      const userFromGoogle = req.user as any;
+
+      if (!userFromGoogle) {
+        return res.redirect("https://eventsh.com/login?error=auth_failed");
+        // return res.redirect(
+        //   "http://localhost:8080/eshop-login?error=auth_failed"
+        // );
+      }
+
+      // Check if user exists, create if not
+      let user = await this.usersService.findByEmail(userFromGoogle.email);
+
+      if (!user) {
+        const createUserDto: CreateUserDto = {
+          name: userFromGoogle.name,
+          email: userFromGoogle.email,
+          password:
+            userFromGoogle.password || "oauth-" + userFromGoogle.oauthId,
+          provider: userFromGoogle.oauthProvider,
+          providerId: userFromGoogle.oauthId,
+        };
+        user = await this.usersService.create(createUserDto);
+      }
+
+      // Generate JWT for this user
+      const payload = {
+        name: user.name,
+        email: user.email,
+        sub: user._id,
+        roles: user.roles,
+      };
+
+      const token = this.jwtService.sign(payload, {
+        secret: process.env.JWT_ACCESS_SECRET,
+        expiresIn: "1h",
+      });
+
+      // ✅ IMPORTANT: redirect to eshop-login with token & email
+      // Frontend useEffect will detect token in URL params and call check-role API
+      return res.redirect(
+        `https://eventsh.com/eshop-login?token=${encodeURIComponent(
+          token
+        )}&email=${encodeURIComponent(user.email)}&name=${encodeURIComponent(
+          user.name
+        )}`
+      );
+      // return res.redirect(
+      //   `http://localhost:8080/eshop-login?token=${encodeURIComponent(
+      //     token
+      //   )}&email=${encodeURIComponent(user.email)}&name=${encodeURIComponent(
+      //     user.name
+      //   )}`
+      // );
+    } catch (error) {
+      return res.redirect("https://eventsh.com/login?error=auth_failed");
+      // return res.redirect(
+      //   "http://localhost:8080/eshop-login?error=auth_failed"
+      // );
+    }
+  }
+
+  @Post("check-role") // e.g. /auth/check-role
+  @UseGuards(JwtAuthGuard)
+  async checkRoleFromAuth(
+    @Req() req: any,
+    @Body() body: { role: "organizer" | "shopkeeper" }
+  ) {
+    try {
+      const email = req.user.email;
+      const name = req.user.name;
+
+      return this.rolesService.checkRoleAvailability1(email, name, body.role);
+    } catch (error) {
+      console.error("checkRoleFromAuth error:", error);
+      throw error;
     }
   }
 
@@ -113,7 +208,7 @@ export class AuthController {
   async instagramRedirect(@Req() req: Request, @Res() res: Response) {
     const user = req.user as any;
     if (!user) {
-      return res.redirect("https://eventsh.com/login?error=auth_failed");
+      return res.redirect("http://localhost:8080/login?error=auth_failed");
     }
 
     // Check if the user exists based on provider ID, and if not, create them.

@@ -14,7 +14,6 @@ export class RoleController {
     @Body() body: { role: "organizer" | "shopkeeper" }
   ) {
     try {
-      console.log(req, "Vansh Sharma");
       const email = req.user.email;
       const name = req.user.name;
       return this.roleService.checkRoleAvailability(email, name, body.role);

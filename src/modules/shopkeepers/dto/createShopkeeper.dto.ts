@@ -1,28 +1,12 @@
 import {
-  IsEmail,
   IsString,
-  MinLength,
   IsNotEmpty,
-  IsObject,
-  ValidateNested,
-  IsBoolean,
+  MinLength,
   IsOptional,
+  IsEmail,
+  IsBoolean,
+  IsEnum,
 } from "class-validator";
-import { Type } from "class-transformer";
-
-class BusinessHourDto {
-  @IsString()
-  @IsOptional()
-  open?: string;
-
-  @IsString()
-  @IsOptional()
-  close?: string;
-
-  @IsBoolean()
-  @IsOptional()
-  closed?: boolean;
-}
 
 export class CreateShopkeeperDto {
   @IsString()
@@ -39,11 +23,6 @@ export class CreateShopkeeperDto {
 
   @IsString()
   @IsNotEmpty()
-  @MinLength(8)
-  password: string;
-
-  @IsString()
-  @IsNotEmpty()
   phone: string;
 
   @IsString()
@@ -54,12 +33,32 @@ export class CreateShopkeeperDto {
   @IsOptional()
   description?: string;
 
-  @IsEmail()
+  @IsString()
   @IsNotEmpty()
+  whatsappNumber: string;
+
+  @IsEmail() // ← CHANGED: Email validation
+  @IsNotEmpty() // ← CHANGED: Required (matches schema)
   businessEmail: string;
 
-  @IsObject()
-  @ValidateNested({ each: true })
-  @Type(() => BusinessHourDto)
-  businessHours: Record<string, BusinessHourDto>;
+  @IsString()
+  @IsNotEmpty()
+  businessCategory: string;
+
+  @IsString()
+  @IsOptional()
+  GSTNumber: string;
+
+  // ← NEW FIELDS (Singapore/Country support)
+  @IsString()
+  @IsOptional()
+  UENNumber?: string;
+
+  @IsString()
+  @IsNotEmpty()
+  country: string;
+
+  @IsBoolean()
+  @IsNotEmpty()
+  hasDocVerification: boolean;
 }

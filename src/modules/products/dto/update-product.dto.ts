@@ -11,6 +11,7 @@ import {
   IsMongoId,
   IsNotEmpty,
   Min,
+  ArrayMaxSize,
 } from "class-validator";
 import { Type } from "class-transformer";
 
@@ -41,29 +42,44 @@ export class UpdateProductVariantDto {
 
   @IsOptional()
   @IsNumber()
-  inventory?: number;
-
-  @IsOptional()
-  @IsObject()
-  options?: Record<string, any>;
-}
-
-export class UpdateInventoryDto {
-  @IsOptional()
   @Min(0)
-  quantity?: number;
+  inventory?: number;
 
   @IsOptional()
   @IsBoolean()
   trackQuantity?: boolean;
 
   @IsOptional()
-  @IsBoolean()
-  allowBackorder?: boolean;
+  @IsNumber()
+  lowstockThreshold?: number;
+
+  @IsOptional()
+  @IsObject()
+  options?: Record<string, any>;
+}
+
+export class UpdateProductSubcategoryDto {
+  @IsOptional()
+  @IsNumber()
+  id?: number;
+
+  @IsOptional()
+  @IsString()
+  name?: string;
+
+  @IsOptional()
+  @IsString()
+  description?: string;
 
   @IsOptional()
   @IsNumber()
-  lowStockThreshold?: number;
+  basePrice?: number;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => UpdateProductVariantDto)
+  variants?: UpdateProductVariantDto[];
 }
 
 export class UpdateDimensionsDto {
@@ -102,16 +118,12 @@ export class UpdateProductDto {
   description?: string;
 
   @IsOptional()
-  @IsString()
-  price?: string;
+  @IsNumber()
+  price?: number;
 
   @IsOptional()
-  @IsString()
-  compareAtPrice?: string;
-
-  @IsOptional()
-  @IsString()
-  cost?: string;
+  @IsNumber()
+  compareAtPrice?: number;
 
   @IsOptional()
   @IsString()
@@ -133,17 +145,29 @@ export class UpdateProductDto {
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
+  @ArrayMaxSize(3, { message: "Maximum 3 images are allowed per product" })
   images?: string[];
 
+  // Product-level inventory (when no subcategories exist)
   @IsOptional()
-  @ValidateNested()
-  @Type(() => UpdateInventoryDto)
-  inventory?: UpdateInventoryDto;
+  @IsNumber()
+  @Min(0)
+  inventory?: number;
 
   @IsOptional()
+  @IsBoolean()
+  trackQuantity?: boolean;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  lowStockThreshold?: number;
+
+  @IsOptional()
+  @IsArray()
   @ValidateNested({ each: true })
-  @Type(() => UpdateProductVariantDto)
-  variants?: UpdateProductVariantDto[];
+  @Type(() => UpdateProductSubcategoryDto)
+  subcategories?: UpdateProductSubcategoryDto[];
 
   @IsOptional()
   @IsEnum(["active", "draft", "archived"])

@@ -2,6 +2,8 @@ import {
   Injectable,
   NotFoundException,
   UnauthorizedException,
+  ConflictException,
+  BadRequestException,
 } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model, Types } from "mongoose";
@@ -14,19 +16,32 @@ import { EventDocument } from "../events/schemas/event.schema";
 import { User } from "../users/schemas/user.schema";
 import { MailService } from "../roles/mail.service";
 import { CreateOrganizerDto } from "./dto/createOrganizer.dto";
+import { Otp } from "../otp/entities/otp.entity";
+import { UpdateOrganizerDto } from "./dto/updateOrganizer.dto";
+import * as path from "path";
+import * as fs from "fs";
+import { Plan } from "../plans/entities/plan.entity";
+import { OtpService } from "../otp/otp.service";
 
 @Injectable()
 export class OrganizersService {
   constructor(
     @InjectModel(Organizer.name)
     private organizerModel: Model<OrganizerDocument>,
+    @InjectModel(Otp.name) private otpModel: Model<Otp>, // Inject the OTP model
     @InjectModel(Event.name)
     private eventModel: Model<EventDocument>,
     @InjectModel(User.name)
     private userModel: Model<User>,
+    @InjectModel(Plan.name) private planModel: Model<Plan>,
     private readonly jwtService: JwtService,
     private readonly mailService: MailService
+    // private readonly otpService: OtpService
   ) {}
+
+  private normalizeEmail(email: string): string {
+    return email.toLowerCase().trim();
+  }
 
   async create(data: Partial<Organizer>) {
     const created = new this.organizerModel(data);
@@ -61,65 +76,68 @@ export class OrganizersService {
       console.log(error);
       throw error;
     }
-    // return this.organizerModel.find().exec();
   }
 
   async getDashboardDataForOrganizer(organizerId: string): Promise<any> {
     const now = new Date();
 
-    const organizer = new Types.ObjectId(organizerId);
+    // Calculate start of today (midnight)
+    const startOfToday = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate(),
+      0,
+      0,
+      0,
+      0
+    );
+
+    // Calculate end of today (just before midnight next day)
+    const endOfToday = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate(),
+      23,
+      59,
+      59,
+      999
+    );
+
+    // Convert organizerId to ObjectId if needed (depends on your schema and ORM)
+    // const organizer = new Types.ObjectId(organizerId);
 
     const currentEvents = await this.eventModel
       .find({
-        organizer: organizer,
-        startDate: { $lte: now },
-        $or: [{ endDate: { $gte: now } }, { endDate: null }],
+        organizer: organizerId,
+        // Events that start before end of today
+        startDate: { $lte: endOfToday },
+        // and endDate is either null or after start of today
+        $or: [{ endDate: { $gte: startOfToday } }, { endDate: null }],
       })
       .lean();
 
     const upcomingEvents = await this.eventModel
       .find({
-        organizer: organizer,
-        startDate: { $gte: now },
+        organizer: organizerId,
+        startDate: { $gt: endOfToday }, // strictly after today
       })
       .lean();
 
     const pastEvents = await this.eventModel
       .find({
-        organizer: organizer,
-        endDate: { $lte: now },
+        organizer: organizerId,
+        endDate: { $lt: startOfToday }, // strictly before today
       })
       .lean();
 
     const totalEvents = await this.eventModel.countDocuments({
-      organizer: organizer,
+      organizer: organizerId,
     });
 
     const totalAttendees = await this.eventModel.aggregate([
-      { $match: { organizer: organizer } },
+      { $match: { organizer: organizerId } },
       { $group: { _id: null, total: { $sum: "$attendees" } } },
     ]);
-
-    // const ticketsSold = await this.eventModel.aggregate([
-    //   { $match: { organizer: new Types.ObjectId(organizerId) } },
-    //   { $group: { _id: null, total: { $sum: "$ticketsSold" } } },
-    // ]);
-
-    // const revenue = await this.eventModel.aggregate([
-    //   { $match: { organizer: new Types.ObjectId(organizerId) } },
-    //   {
-    //     $group: {
-    //       _id: null,
-    //       totalRevenue: {
-    //         $sum: {
-    //           $toDouble: {
-    //             $replaceAll: { input: "$revenue", find: "$", replacement: "" },
-    //           },
-    //         },
-    //       },
-    //     },
-    //   },
-    // ]);
 
     return {
       stats: [
@@ -128,14 +146,6 @@ export class OrganizersService {
           title: "Total Attendees",
           value: totalAttendees[0]?.total?.toLocaleString() || "0",
         },
-        // {
-        //   title: "Tickets Sold",
-        //   value: ticketsSold?.total?.toLocaleString() || "0",
-        // },
-        // {
-        //   title: "Revenue",
-        //   value: `$${revenue?.totalRevenue?.toFixed(2) || "0.00"}`,
-        // },
       ],
       currentEvents,
       upcomingEvents,
@@ -144,21 +154,17 @@ export class OrganizersService {
   }
 
   async registerOrganizer(dto: CreateOrganizerDto) {
-    const hashedPassword = await bcrypt.hash(dto.password, 10);
-
-    // Check if organizer already exists
     const existing = await this.organizerModel.findOne({ email: dto.email });
-    if (existing) throw new Error("Organizer with this email already exists");
+    if (existing)
+      throw new ConflictException("Organizer with this email already exists");
 
     const organizer = await new this.organizerModel({
       ...dto,
-      password: hashedPassword,
       status: "pending",
       approved: false,
       rejected: false,
     }).save();
 
-    // Send emails
     await this.mailService.sendApprovalRequestToAdmin({
       name: dto.name,
       email: dto.email,
@@ -170,27 +176,130 @@ export class OrganizersService {
       role: "organizer",
     });
 
-    const userObj = organizer.toObject();
-    delete userObj.password;
-    return userObj;
+    return organizer;
   }
 
-  async login(dto: LoginDto) {
+  async requestOTP(email: string) {
     try {
-      const organizer = await this.organizerModel.findOne({ email: dto.email });
+      const normalizedEmail = this.normalizeEmail(email);
+      console.log(`Requesting OTP for: ${normalizedEmail}`);
+
+      const organizer = await this.organizerModel.findOne({
+        businessEmail: normalizedEmail,
+        approved: true,
+      });
+
       if (!organizer) {
-        throw new NotFoundException("Organizer Not Found");
+        throw new NotFoundException("Organizer not found or not approved");
       }
 
-      if (!organizer.approved) {
-        throw new NotFoundException(
-          "Your request is still pending! Please wait for admin Approval..."
+      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+      const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+      const channel = "business_email";
+      const role = "organizer";
+      const identifier = normalizedEmail;
+
+      await this.otpModel.findOneAndUpdate(
+        { channel, role, identifier },
+        {
+          email: normalizedEmail,
+          otp,
+          expiresAt,
+          attempts: 0,
+          verified: false,
+          lastSentAt: new Date(),
+          channel,
+          identifier,
+          role,
+        },
+        { upsert: true, new: true }
+      );
+
+      console.log(`OTP saved to database for ${normalizedEmail}: ${otp}`);
+
+      const businessEmail = organizer.businessEmail || organizer.email;
+
+      await this.mailService.sendOTPEmail({
+        name: organizer.name,
+        email: businessEmail,
+        otp,
+        businessName: organizer.organizationName || organizer.name,
+      });
+
+      return {
+        message: "OTP sent successfully to your registered business email",
+        data: {
+          email: normalizedEmail,
+          businessEmail,
+          expiresIn: 10,
+        },
+      };
+    } catch (error) {
+      console.log("Error in requestOTP:", error);
+      throw error;
+    }
+  }
+
+  async verifyOTP(email: string, otp: string) {
+    try {
+      const normalizedEmail = this.normalizeEmail(email);
+      console.log(`Verifying OTP for: ${normalizedEmail}`);
+
+      const channel = "business_email";
+      const role = "organizer";
+      const identifier = normalizedEmail;
+
+      const otpDoc = await this.otpModel.findOne({
+        channel,
+        role,
+        identifier,
+        verified: false,
+      });
+
+      if (!otpDoc) {
+        console.log(`No OTP document found for email: ${normalizedEmail}`);
+        throw new BadRequestException(
+          "OTP not found or expired. Please request a new one."
         );
       }
 
-      const isMatch = await bcrypt.compare(dto.password, organizer.password);
-      if (!isMatch) {
-        throw new UnauthorizedException("Invalid Credentials");
+      if (new Date() > otpDoc.expiresAt) {
+        console.log("OTP has expired");
+        await this.otpModel.deleteOne({ _id: otpDoc._id });
+        throw new BadRequestException(
+          "OTP has expired. Please request a new one."
+        );
+      }
+
+      if (otpDoc.attempts >= 3) {
+        console.log("Too many attempts");
+        await this.otpModel.deleteOne({ _id: otpDoc._id });
+        throw new BadRequestException(
+          "Too many invalid attempts. Please request a new OTP."
+        );
+      }
+
+      if (otpDoc.otp !== otp) {
+        console.log(`OTP mismatch. Expected: ${otpDoc.otp}, Received: ${otp}`);
+        await this.otpModel.updateOne(
+          { _id: otpDoc._id },
+          { $inc: { attempts: 1 } }
+        );
+        throw new BadRequestException(
+          `Invalid OTP. ${3 - otpDoc.attempts - 1} attempts remaining.`
+        );
+      }
+
+      console.log("OTP verified successfully");
+
+      const organizer = await this.organizerModel.findOne({
+        businessEmail: normalizedEmail,
+        approved: true,
+      });
+
+      if (!organizer) {
+        throw new NotFoundException("Organizer not found or not approved");
       }
 
       const payload = {
@@ -199,14 +308,132 @@ export class OrganizersService {
         sub: organizer._id,
         roles: ["organizer"],
       };
+
       const token = this.jwtService.sign(payload, {
         secret: process.env.JWT_ACCESS_SECRET,
-        expiresIn: "1h",
+        expiresIn: "24h",
       });
 
-      console.log(token, "Vansh Sharma");
+      await this.otpModel.deleteOne({ _id: otpDoc._id });
+      console.log(`OTP deleted for ${normalizedEmail}`);
 
-      return { message: "login Successfull", data: token };
+      return {
+        message: "Login successful",
+        data: {
+          token,
+          organizer: {
+            id: organizer._id,
+            name: organizer.name,
+            email: organizer.email,
+            businessName: organizer.organizationName,
+          },
+        },
+      };
+    } catch (error) {
+      console.log("Error in verifyOTP:", error);
+      throw error;
+    }
+  }
+
+  async resendOTP(email: string) {
+    try {
+      const normalizedEmail = this.normalizeEmail(email);
+      console.log(`Resending OTP for: ${normalizedEmail}`);
+
+      const organizer = await this.organizerModel.findOne({
+        businessEmail: normalizedEmail,
+        approved: true,
+      });
+
+      if (!organizer) {
+        throw new NotFoundException("Organizer not found or not approved");
+      }
+
+      const channel = "business_email";
+      const role = "organizer";
+      const identifier = normalizedEmail;
+
+      const existing = await this.otpModel.findOne({
+        channel,
+        role,
+        identifier,
+      });
+      if (
+        existing?.lastSentAt &&
+        Date.now() - new Date(existing.lastSentAt).getTime() < 60 * 1000
+      ) {
+        throw new BadRequestException(
+          "Please wait 60 seconds before requesting a new OTP"
+        );
+      }
+
+      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+      const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+
+      await this.otpModel.findOneAndUpdate(
+        { channel, role, identifier },
+        {
+          email: normalizedEmail,
+          otp,
+          expiresAt,
+          attempts: 0,
+          verified: false,
+          lastSentAt: new Date(),
+          channel,
+          identifier,
+          role,
+        },
+        { upsert: true, new: true }
+      );
+
+      console.log(`New OTP saved for ${normalizedEmail}: ${otp}`);
+
+      const businessEmail = organizer.businessEmail || organizer.email;
+
+      await this.mailService.sendOTPEmail({
+        name: organizer.name,
+        email: businessEmail,
+        otp,
+        businessName: organizer.organizationName || organizer.name,
+      });
+
+      return {
+        message: "New OTP sent successfully",
+        data: {
+          email: businessEmail,
+          expiresIn: 10,
+        },
+      };
+    } catch (error) {
+      console.log("Error in resendOTP:", error);
+      throw error;
+    }
+  }
+
+  async findByWhatsAppNumber(whatsAppNumber: string) {
+    try {
+      console.log(whatsAppNumber);
+      const organizer = await this.organizerModel.findOne({
+        whatsAppNumber: whatsAppNumber,
+      });
+      console.log(organizer);
+      if (!organizer) {
+        throw new NotFoundException("Organizer Not Found");
+      }
+
+      const payload = {
+        name: organizer.name,
+        email: organizer.email,
+        sub: organizer._id,
+        roles: ["organizer"],
+      };
+
+      const token = this.jwtService.sign(payload, {
+        secret: process.env.JWT_ACCESS_SECRET,
+        expiresIn: "24h",
+      });
+
+      return { message: "Token found", token: token };
     } catch (error) {
       console.log(error);
       throw error;
@@ -220,6 +447,191 @@ export class OrganizersService {
   }
 
   async getprofile(id: string) {
-    return this.organizerModel.findById(id).exec();
+    try {
+      const organizer = await this.organizerModel.findOne({ _id: id });
+      console.log(organizer);
+      if (!organizer) {
+        throw new NotFoundException("Organizer Not Found");
+      }
+      return { message: "Organizer Found", data: organizer };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async getOrganizer(id: string) {
+    try {
+      console.log("Calleeedsfjsnafjsdfv");
+      const organizer = await this.organizerModel.find({ _id: id });
+      console.log(organizer);
+      if (!organizer) {
+        throw new NotFoundException("Organizer Not Found");
+      }
+      return { message: "Organizer Found", data: organizer };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async getProfile(id: string) {
+    try {
+      const _id = new Types.ObjectId(id);
+      const organizer = await this.organizerModel.findOne({ _id });
+      if (!organizer) {
+        throw new NotFoundException("Not Found");
+      }
+
+      return { message: "Organizer Found", data: organizer };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async updateProfile(
+    id: string,
+    body: {
+      name?: string;
+      email?: string;
+      organizationName?: string;
+      businessEmail?: string;
+      whatsAppNumber?: string;
+      address?: string;
+      slug?: string;
+      paymentURL?: string;
+      phoneNumber?: string;
+      bio?: string;
+    },
+    paymentQrPublicUrl?: string | null
+  ) {
+    if (!Types.ObjectId.isValid(id)) {
+      throw new BadRequestException("Invalid organizer id");
+    }
+
+    const update: Record<string, any> = {};
+
+    if (body.name !== undefined) update.name = body.name;
+    if (body.email !== undefined) update.email = body.email.toLowerCase();
+    if (body.organizationName !== undefined)
+      update.organizationName = body.organizationName;
+    if (body.phoneNumber !== undefined) update.phoneNumber = body.phoneNumber;
+    if (body.businessEmail !== undefined)
+      update.businessEmail = body.businessEmail.toLowerCase();
+    if (body.whatsAppNumber !== undefined)
+      update.whatsAppNumber = body.whatsAppNumber;
+    if (body.address !== undefined) update.address = body.address;
+    if (body.slug !== undefined) update.slug = body.slug;
+    if (body.paymentURL !== undefined) update.paymentURL = body.paymentURL;
+    if (body.phoneNumber !== undefined) update.phoneNumber = body.phoneNumber;
+    if (body.bio !== undefined) update.bio = body.bio;
+
+    if (paymentQrPublicUrl) {
+      update.paymentURL = paymentQrPublicUrl;
+    }
+
+    const updated = await this.organizerModel
+      .findByIdAndUpdate(id, update, {
+        new: true,
+        runValidators: true,
+      })
+      .lean()
+      .exec();
+
+    if (!updated) {
+      throw new NotFoundException("Organizer not found");
+    }
+
+    delete (updated as any).password; // if password exists
+
+    return { message: "Profile updated", data: updated };
+  }
+
+  async getOrganizerBySlug(slug: string) {
+    try {
+      const organizer = await this.organizerModel.findOne({ slug: slug });
+      if (!organizer) {
+        throw new NotFoundException("Organizer Not Found");
+      }
+
+      return { message: "Organizer Found", data: organizer };
+    } catch (error) {
+      console.log(error);
+      throw error;
+    }
+  }
+
+  async addSubscriptionPlan(id: string, planSelected: string) {
+    try {
+      const organizer = await this.organizerModel.findById(id);
+      if (!organizer) {
+        throw new NotFoundException("Organizer Not Found");
+      }
+
+      const plan = await this.planModel.findById(planSelected);
+      if (!plan || !plan.isActive)
+        throw new NotFoundException("Plan Not Found or Inactive");
+
+      organizer.subscribed = true;
+      organizer.planId = plan._id;
+      organizer.planStartDate = new Date();
+      organizer.planExpiryDate = new Date(
+        organizer.planStartDate.getTime() +
+          plan.validityInDays * 24 * 60 * 60 * 1000
+      );
+      organizer.pricePaid = plan.price.toString();
+
+      let message =
+        `🔄 *Plan Activated*\n\n` +
+        `Dear ${organizer.name},\n\n` +
+        `Your Subscription Plan for *${plan.planName}* has been successfully Activated for *${organizer.organizationName}*.\n\n` +
+        `• Plan Validity: ${plan.validityInDays} days\n` +
+        `• Features Included:\n${plan.features.map((f) => `  - ${f}`).join("\n")}\n\n` +
+        `Thank you for choosing us! We’re excited to support your journey.\n\n` +
+        `Best regards,\n` +
+        `The Eventsh Team`;
+
+      await organizer.save();
+
+      // await this.otpService.sendWhatsAppMessage(
+      //   organizer.whatsAppNumber,
+      //   message
+      // );
+
+      return { message: "Plan Added", data: organizer };
+    } catch (error) {
+      console.log(error);
+      throw error;
+    }
+  }
+
+  async cancelSubscription(id: string) {
+    try {
+      const organizer = await this.organizerModel.findById(id);
+
+      if (!organizer) {
+        throw new NotFoundException("Organizer Not Found");
+      }
+
+      organizer.subscribed = false;
+      organizer.planId = null;
+      // organizer.planStartDate = null;
+      organizer.planExpiryDate = new Date();
+
+      let message =
+        `🔄 *Subscription Cancelled*\n\n` +
+        `Dear ${organizer.name},\n\n` +
+        `Your Subscription Plan for *${organizer.organizationName}* has been successfully Cancelled.\n\n`;
+
+      await organizer.save();
+
+      // await this.otpService.sendWhatsAppMessage(
+      //   organizer.whatsAppNumber,
+      //   message
+      // );
+
+      return { message: "Subscription Cancelled", data: organizer };
+    } catch (error) {
+      console.log(error);
+      throw error;
+    }
   }
 }

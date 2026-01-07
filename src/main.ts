@@ -9,15 +9,42 @@ dotenv.config();
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
+  async function getAllowedDomains(): Promise<string[]> {
+    return [
+      "https://eventsh.com",
+      "https://thefoxsg.com",
+      "http://localhost:8080",
+    ]; // sample static list, replace with DB call
+  }
+
   app.enableCors({
-    origin: "http://localhost:8080", // Your frontend's URL
+    origin: async (origin, callback) => {
+      if (!origin) {
+        // allow server-to-server or curl/fetch w/o origin
+        return callback(null, true);
+      }
+
+      const allowedDomains = await getAllowedDomains();
+      if (allowedDomains.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(
+          new Error(`CORS policy: The origin '${origin}' is not allowed.`)
+        );
+      }
+    },
     methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
-    credentials: true, // This is important to allow cookies and authorization headers
+    credentials: true,
   });
+
+  // rest of your setup code
   app.use("/uploads", express.static(path.join(__dirname, "..", "uploads")));
   app.useGlobalPipes(new ValidationPipe({ whitelist: true }));
+
   const port = process.env.PORT || 3000;
   await app.listen(port);
-  console.log(`Server running on http://localhost:${port}`);
+  console.log(`Server running at http://localhost:${port}`);
 }
+
 bootstrap();

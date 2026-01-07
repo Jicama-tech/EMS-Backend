@@ -11,6 +11,15 @@ import { AdminModule } from "./modules/admin/admin.module";
 import { RolesModule } from "./modules/roles/roles.module";
 import { MailModule } from "./modules/roles/mail.module";
 import { ProductsModule } from "./modules/products/products.module";
+import { OtpModule } from "./modules/otp/otp.module";
+import { ShopkeeperStoresModule } from "./modules/shopkeeper-stores/shopkeeper-stores.module";
+import { OrdersModule } from "./modules/orders/orders.module";
+import { PaymentsModule } from "./modules/payments/payments.module";
+import { TicketsModule } from "./modules/tickets/tickets.module";
+import { StallsModule } from "./modules/stalls/stalls.module";
+import { PlansModule } from "./modules/plans/plans.module";
+import { EnquiryModule } from "./modules/enquiry/enquiry.module";
+import { ShopkeeperAnalyticsModule } from "./modules/shopkeepers/shopkeeper-analytics.module";
 
 @Module({
   imports: [
@@ -21,6 +30,8 @@ import { ProductsModule } from "./modules/products/products.module";
     ),
     AuthModule,
     UsersModule,
+    OtpModule,
+    ShopkeeperStoresModule,
     EventsModule,
     OrganizersModule,
     ShopkeepersModule,
@@ -28,6 +39,13 @@ import { ProductsModule } from "./modules/products/products.module";
     AdminModule,
     RolesModule,
     ProductsModule,
+    OrdersModule,
+    PaymentsModule,
+    TicketsModule,
+    StallsModule,
+    PlansModule,
+    EnquiryModule,
+    ShopkeeperAnalyticsModule,
   ],
 })
 export class AppModule {}

@@ -12,9 +12,11 @@ import { ShopkeeperSchema } from "../shopkeepers/schemas/shopkeeper.schema";
 import { MailModule } from "./mail.module";
 import { JwtModule } from "@nestjs/jwt";
 import { OrganizersModule } from "../organizers/organizers.module";
+import { ShopkeepersModule } from "../shopkeepers/shopkeepers.module";
 
 @Module({
   imports: [
+    ShopkeepersModule,
     OrganizersModule,
     MailModule,
     JwtModule.register({
@@ -29,11 +31,7 @@ import { OrganizersModule } from "../organizers/organizers.module";
     // if those services use Mongo models directly
   ],
   controllers: [RoleController],
-  providers: [
-    RoleService,
-    RegistrationService,
-    OrganizersService,
-    ShopkeepersService,
-  ],
+  providers: [RoleService, RegistrationService],
+  exports: [RoleService],
 })
 export class RolesModule {}
