@@ -169,9 +169,9 @@ export class OrdersService {
         string,
         { locale: string; currency: string; symbol?: string }
       > = {
-        IN: { locale: "en-IN", currency: "INR", symbol: "₹" },
-        SG: { locale: "en-SG", currency: "SGD", symbol: "SG$" },
-        US: { locale: "en-US", currency: "USD", symbol: "US$" },
+        IN: { locale: "en-IN", currency: "INR", symbol: "₹" }, // ₹
+        SG: { locale: "en-SG", currency: "SGD", symbol: "S$" }, // S$
+        US: { locale: "en-US", currency: "USD", symbol: "$" }, // $
       };
 
       const cfg = map[countryCode] || map.US;
@@ -180,9 +180,7 @@ export class OrdersService {
         maximumFractionDigits: 2,
       });
 
-      console.log(cfg.symbol, "cfg.symbol");
-
-      return cfg.symbol ? `${cfg.symbol}${formatted}` : formatted;
+      return `${cfg.symbol}${formatted}`;
     };
 
     const countryCode = shopkeeperDetail.country || "IN";
@@ -234,8 +232,8 @@ export class OrdersService {
 
         doc.moveDown(0.5);
         doc
-          .fontSize(10)
-          .text("-----------------------------------------------------", {
+          .fontSize(12)
+          .text("---------------------------------------------------", {
             align: "center",
           });
 
@@ -253,7 +251,7 @@ export class OrdersService {
         doc.moveDown(0.5);
         doc
           .fontSize(12)
-          .text("-----------------------------------------------------", {
+          .text("---------------------------------------------------", {
             align: "center",
           });
 
@@ -288,7 +286,7 @@ export class OrdersService {
         doc.moveDown(0.5);
         doc
           .fontSize(12)
-          .text("-----------------------------------------------------", {
+          .text("---------------------------------------------------", {
             align: "center",
           });
 
@@ -327,7 +325,7 @@ export class OrdersService {
         doc.moveDown(0.3);
         doc
           .fontSize(12)
-          .text("-----------------------------------------------------", {
+          .text("---------------------------------------------------", {
             align: "center",
           });
         // ========== TOTALS (match frontend tax calc) ==========
@@ -354,7 +352,7 @@ export class OrdersService {
         doc.moveDown(0.5);
         doc
           .fontSize(12)
-          .text("-----------------------------------------------------", {
+          .text("---------------------------------------------------", {
             align: "center",
           });
         // ========== PAYMENT INFO ==========
@@ -366,7 +364,7 @@ export class OrdersService {
         doc.moveDown(0.5);
         doc
           .fontSize(12)
-          .text("-----------------------------------------------------", {
+          .text("---------------------------------------------------", {
             align: "center",
           });
         // ========== FOOTER ==========
