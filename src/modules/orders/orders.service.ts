@@ -18,8 +18,6 @@ import { v4 as uuidv4 } from "uuid";
 import { CreateUserDto } from "../users/dto/create-users.dto";
 import { UsersService } from "../users/users.service";
 import fontkit from "fontkit";
-import * as fs from "fs";
-import * as path from "path";
 
 function asObjectId(id: string | Types.ObjectId): Types.ObjectId | string {
   // If already an ObjectId
@@ -172,9 +170,9 @@ export class OrdersService {
         string,
         { locale: string; currency: string; symbol: string }
       > = {
-        IN: { locale: "en-IN", currency: "INR", symbol: "₹" },
-        SG: { locale: "en-SG", currency: "SGD", symbol: "S$" },
-        US: { locale: "en-US", currency: "USD", symbol: "$" },
+        IN: { locale: "en-IN", currency: "INR", symbol: "Rs." },
+        SG: { locale: "en-SG", currency: "SGD", symbol: "SGD." },
+        US: { locale: "en-US", currency: "USD", symbol: "USD." },
       };
 
       const cfg = map[countryCode] || map["US"];
@@ -204,29 +202,21 @@ export class OrdersService {
       try {
         const PDFDocument = (PDFKit as any).default || PDFKit;
 
-        // ========== LOAD CUSTOM FONT WITH FONTKIT ==========
-        const fontPath = path.join(
-          __dirname,
-          "../../../Fonts/NotoEmoji-Regular.ttf"
-        );
-        console.log(fontPath);
-        const fontBuffer = fs.readFileSync(fontPath);
-
         // ========== CALCULATE DYNAMIC HEIGHT ==========
         let contentHeight = 0;
 
         // Shop info height
-        contentHeight += 20;
+        contentHeight += 20; // shop name
         if (shopkeeperDetail.whatsappNumber) contentHeight += 12 + 3;
         if (shopkeeperDetail.businessEmail) contentHeight += 12 + 3;
         if (shopkeeperDetail.GSTNumber) contentHeight += 12 + 3;
-        contentHeight += 15;
+        contentHeight += 15; // spacing + separator
 
         // Order info height
-        contentHeight += 13 + 12 + 12 + 15;
+        contentHeight += 13 + 12 + 12 + 15; // order #, date, time + separator
 
         // Customer info height
-        contentHeight += 12 + 12;
+        contentHeight += 12 + 12; // "Customer:" + name
         if (customerDetail.whatsAppNumber) contentHeight += 12 + 2;
         if (customerDetail.email) contentHeight += 12 + 2;
         if (order.orderType === "pickup") {
@@ -236,33 +226,34 @@ export class OrdersService {
           contentHeight += 12 + 2;
           if (deliveryAddressLine) contentHeight += 12 + 2;
         }
-        contentHeight += 15;
+        contentHeight += 15; // separator
 
         // Items height
-        contentHeight += 13;
+        contentHeight += 13; // "Items:" heading
         order.items.forEach((item: any) => {
-          contentHeight += 12 + 2;
-          if (item.subcategoryName) contentHeight += 11 + 2;
-          contentHeight += 11 + 6;
+          contentHeight += 12 + 2; // product name
+          if (item.subcategoryName) contentHeight += 11 + 2; // variant
+          contentHeight += 11 + 6; // price line + spacing
         });
-        contentHeight += 15;
+        contentHeight += 15; // separator
 
         // Totals height
         if (shopkeeperDetail.taxPercentage) {
-          contentHeight += 12 + 12 + 12 + 15;
+          contentHeight += 12 + 12 + 12 + 15; // subtotal + tax + total + separator
         } else {
-          contentHeight += 12 + 15;
+          contentHeight += 12 + 15; // total + separator
         }
 
         // Payment info height
-        contentHeight += 12 + 12 + 15;
+        contentHeight += 12 + 12 + 15; // payment + status + separator
 
         // Footer height
-        contentHeight += 12 + 12;
+        contentHeight += 12 + 12; // thank you + visit again
 
         // Add padding
         contentHeight += 20;
 
+        // Minimum height and calculate final size
         const finalHeight = Math.max(contentHeight, 400);
 
         // ========== CREATE PDF DOCUMENT WITH DYNAMIC HEIGHT ==========
@@ -270,9 +261,6 @@ export class OrdersService {
           size: [227, finalHeight],
           margins: { top: 10, bottom: 10, left: 10, right: 10 },
         });
-
-        // ========== REGISTER CUSTOM FONT ==========
-        doc.registerFont("NotoEmoji", fontBuffer);
 
         const chunks: Buffer[] = [];
         doc.on("data", (chunk) => chunks.push(chunk));
@@ -282,10 +270,10 @@ export class OrdersService {
         // ========== SHOP INFO (header) ==========
         doc
           .fontSize(16)
-          .font("NotoEmoji")
+          .font("Helvetica-Bold")
           .text(shopkeeperDetail.shopName || "Shop Name", { align: "center" });
 
-        doc.fontSize(10).font("NotoEmoji");
+        doc.fontSize(10).font("Helvetica");
         if (shopkeeperDetail.whatsappNumber) {
           doc.text(`Phone: ${shopkeeperDetail.whatsappNumber}`, {
             align: "center",
@@ -309,12 +297,12 @@ export class OrdersService {
 
         // ========== ORDER INFO ==========
         doc.moveDown(0.15);
-        doc.fontSize(11).font("NotoEmoji");
+        doc.fontSize(11).font("Helvetica-Bold");
         doc.text(
           `Order #: ${order.orderId?.slice(-6)?.toUpperCase() || "N/A"}`,
           { align: "left" }
         );
-        doc.font("NotoEmoji").fontSize(10);
+        doc.font("Helvetica").fontSize(10);
         doc.text(`Date: ${formatDate(order.createdAt)}`);
         doc.text(`Time: ${formatTime(order.createdAt)}`);
 
@@ -327,8 +315,8 @@ export class OrdersService {
 
         // ========== CUSTOMER INFO ==========
         doc.moveDown(0.15);
-        doc.font("NotoEmoji").fontSize(10).text("Customer:");
-        doc.font("NotoEmoji").fontSize(10);
+        doc.font("Helvetica-Bold").fontSize(10).text("Customer:");
+        doc.font("Helvetica").fontSize(10);
         doc.text(`Name: ${customerDetail.name}`);
         if (customerDetail.whatsAppNumber) {
           doc.text(`Phone: ${customerDetail.whatsAppNumber}`);
@@ -362,7 +350,7 @@ export class OrdersService {
 
         // ========== ITEMS ==========
         doc.moveDown(0.15);
-        doc.font("NotoEmoji").fontSize(11).text("Items:");
+        doc.font("Helvetica-Bold").fontSize(11).text("Items:");
         doc.moveDown(0.1);
 
         let itemTotal = 0;
@@ -371,18 +359,18 @@ export class OrdersService {
           const itemPrice = item.price * item.quantity;
           itemTotal += itemPrice;
 
-          doc.font("NotoEmoji").fontSize(10);
+          doc.font("Helvetica-Bold").fontSize(10);
           doc.text(item.productName);
 
           if (item.subcategoryName) {
-            doc.font("NotoEmoji").fontSize(9);
+            doc.font("Helvetica").fontSize(9);
             const variantLabel = item.variantTitle
               ? `, ${item.variantTitle}`
               : "";
             doc.text(`(${item.subcategoryName}${variantLabel})`);
           }
 
-          doc.font("NotoEmoji").fontSize(9);
+          doc.font("Helvetica").fontSize(9);
           const priceLine = `${item.quantity} x ${formatPriceByCountry(
             item.price,
             countryCode
@@ -400,10 +388,11 @@ export class OrdersService {
 
         // ========== TOTALS (match frontend tax calc) ==========
         doc.moveDown(0.15);
-        doc.font("NotoEmoji").fontSize(10);
+        doc.font("Helvetica").fontSize(10);
 
         if (shopkeeperDetail.taxPercentage) {
           const taxPercent = shopkeeperDetail.taxPercentage;
+          // same formula as frontend: tax from tax-inclusive total
           const taxAmount =
             (taxPercent * order.totalAmount) / (100 + taxPercent);
 
@@ -416,7 +405,7 @@ export class OrdersService {
           });
         }
 
-        doc.font("NotoEmoji").fontSize(11);
+        doc.font("Helvetica-Bold").fontSize(11);
         doc.text(
           `Total: ${formatPriceByCountry(order.totalAmount, countryCode)}`,
           { align: "right" }
@@ -431,7 +420,7 @@ export class OrdersService {
 
         // ========== PAYMENT INFO ==========
         doc.moveDown(0.15);
-        doc.font("NotoEmoji").fontSize(10);
+        doc.font("Helvetica").fontSize(10);
         doc.text(`Payment: Online`);
         doc.text(`Status: ${order.status?.toUpperCase() || "PAID"}`);
 
@@ -444,14 +433,13 @@ export class OrdersService {
 
         // ========== FOOTER ==========
         doc.moveDown(0.15);
-        doc.fontSize(10).font("NotoEmoji");
+        doc.fontSize(10).font("Helvetica-Bold");
         doc.text("Thank you for your order!", { align: "center" });
-        doc.font("NotoEmoji");
+        doc.font("Helvetica");
         doc.text("Visit us again!", { align: "center" });
 
         doc.end();
       } catch (error) {
-        console.log(error);
         reject(error);
       }
     });
