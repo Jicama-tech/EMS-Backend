@@ -207,8 +207,9 @@ export class OrdersService {
         // ========== LOAD CUSTOM FONT WITH FONTKIT ==========
         const fontPath = path.join(
           __dirname,
-          "../assets/fonts/NotoEmoji-Regular.ttf"
+          "../../../Fonts/NotoEmoji-Regular.ttf"
         );
+        console.log(fontPath);
         const fontBuffer = fs.readFileSync(fontPath);
 
         // ========== CALCULATE DYNAMIC HEIGHT ==========
@@ -450,6 +451,7 @@ export class OrdersService {
 
         doc.end();
       } catch (error) {
+        console.log(error);
         reject(error);
       }
     });
