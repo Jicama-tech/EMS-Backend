@@ -290,7 +290,7 @@ export class OrdersService {
 
         doc.moveDown(0.2);
         doc
-          .fontSize(10)
+          .fontSize(12)
           .text("---------------------------------------------------", {
             align: "center",
           });
@@ -308,7 +308,7 @@ export class OrdersService {
 
         doc.moveDown(0.2);
         doc
-          .fontSize(10)
+          .fontSize(12)
           .text("---------------------------------------------------", {
             align: "center",
           });
@@ -343,7 +343,7 @@ export class OrdersService {
 
         doc.moveDown(0.2);
         doc
-          .fontSize(10)
+          .fontSize(12)
           .text("---------------------------------------------------", {
             align: "center",
           });
@@ -381,7 +381,7 @@ export class OrdersService {
 
         doc.moveDown(0.15);
         doc
-          .fontSize(10)
+          .fontSize(12)
           .text("---------------------------------------------------", {
             align: "center",
           });
@@ -413,7 +413,7 @@ export class OrdersService {
 
         doc.moveDown(0.2);
         doc
-          .fontSize(10)
+          .fontSize(12)
           .text("---------------------------------------------------", {
             align: "center",
           });
@@ -426,7 +426,7 @@ export class OrdersService {
 
         doc.moveDown(0.2);
         doc
-          .fontSize(10)
+          .fontSize(12)
           .text("---------------------------------------------------", {
             align: "center",
           });
