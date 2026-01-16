@@ -20,6 +20,7 @@ import { StallsModule } from "./modules/stalls/stalls.module";
 import { PlansModule } from "./modules/plans/plans.module";
 import { EnquiryModule } from "./modules/enquiry/enquiry.module";
 import { ShopkeeperAnalyticsModule } from "./modules/shopkeepers/shopkeeper-analytics.module";
+import { OrganizerStoresModule } from "./modules/organizer-stores/organizer-stores.module";
 
 @Module({
   imports: [
@@ -46,6 +47,7 @@ import { ShopkeeperAnalyticsModule } from "./modules/shopkeepers/shopkeeper-anal
     PlansModule,
     EnquiryModule,
     ShopkeeperAnalyticsModule,
+    OrganizerStoresModule,
   ],
 })
 export class AppModule {}

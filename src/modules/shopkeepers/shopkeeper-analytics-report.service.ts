@@ -184,10 +184,8 @@ export class ShopkeeperAnalyticsService {
         orders,
         totalRevenue
       );
-      const { topCustomers, inactiveCustomers } = this.getCustomerPerformance(
-        orders,
-        end
-      );
+      const { topCustomers, inactiveCustomers } =
+        this.getCustomerPerformance(orders);
 
       // ✅ Pass period to getRevenueTrend for dynamic transformation
       const revenueTrend = this.getRevenueTrend(orders, start, end);
@@ -418,10 +416,7 @@ export class ShopkeeperAnalyticsService {
 
   // ============= CUSTOMER PERFORMANCE =============
 
-  private getCustomerPerformance(
-    orders: any[],
-    endDate: Date
-  ): {
+  private getCustomerPerformance(orders: any[]): {
     topCustomers: CustomerPerformanceDto[];
     inactiveCustomers: CustomerPerformanceDto[];
   } {
@@ -464,6 +459,8 @@ export class ShopkeeperAnalyticsService {
 
       customerMap.set(customerId, existing);
     });
+
+    const endDate = new Date();
 
     const allCustomers = Array.from(customerMap.values())
       .map((data) => {
